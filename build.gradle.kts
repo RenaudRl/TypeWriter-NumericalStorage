@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "btc.renaud"
-version = "0.0.1"
+version = "0.0.2"
 
 
 typewriter {
@@ -26,7 +26,7 @@ typewriter {
             NumericalStorage is a TypeWriter extension that provides a comprehensive numerical storage system.
             NumericalStorage is a TypeWriter extension that provides a comprehensive numerical storage system.
         """.trimIndent()
-        engineVersion = "0.9.0-beta-165"
+        engineVersion = "0.9.0-beta-166"
         channel = com.typewritermc.moduleplugin.ReleaseChannel.BETA
 
         dependencies {
