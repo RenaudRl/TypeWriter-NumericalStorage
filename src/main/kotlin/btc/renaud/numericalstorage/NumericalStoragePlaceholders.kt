@@ -19,6 +19,7 @@ class NumericalStoragePlaceholders : PlaceholderHandler {
         return when (type.lowercase()) {
             "balance" -> artifact?.getBalance(player.uniqueId)?.toPlainString()
             "level" -> artifact?.getLevel(player.uniqueId)?.toString()
+            "interest" -> NumericalStorageInterestService.getApplicableInterestRate(player, definition).toString()
             "name" -> definition.displayName.parsePlaceholders(player)
             "prefix" -> definition.prefix.parsePlaceholders(player)
             else -> null

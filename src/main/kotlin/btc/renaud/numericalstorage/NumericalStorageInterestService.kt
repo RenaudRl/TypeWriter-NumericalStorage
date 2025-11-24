@@ -47,7 +47,7 @@ class NumericalStorageInterestService(private val plugin: Plugin) : Listener {
                     val balance = artifact.getBalance(player.uniqueId)
                     if (balance > BigDecimal.ZERO) {
                         // Determine applicable interest rate based on permissions
-                        val applicableRate = def.interestRates.firstOrNull { player.hasPermission(it.permission) }?.rate ?: def.interestRate
+                        val applicableRate = getApplicableInterestRate(player, def)
                         val rate = BigDecimal.valueOf(applicableRate / 100.0)
                         // Compound interest: Balance * (1 + rate)^intervals
                         // Or simple interest for each interval? Usually compound.
@@ -85,6 +85,12 @@ class NumericalStorageInterestService(private val plugin: Plugin) : Listener {
                     }
                 }
             }
+        }
+    }
+
+    companion object {
+        fun getApplicableInterestRate(player: org.bukkit.entity.Player, def: NumericalStorageDefinitionEntry): Double {
+            return def.interestRates.firstOrNull { player.hasPermission(it.permission) }?.rate ?: def.interestRate
         }
     }
 }
