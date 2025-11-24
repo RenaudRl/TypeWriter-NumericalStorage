@@ -133,3 +133,4 @@ class NumericalStorageDepositActionEntry(
         level.levelUpTrigger.triggerFor(this, context())
     }
 }
+

@@ -27,10 +27,26 @@ import kotlinx.coroutines.runBlocking
         override val artifactId: String = "player_numericalstorage",
     ) : ArtifactEntry {
 
-    private fun load(): Pair<MutableMap<UUID, BigDecimal>, MutableMap<UUID, Int>> {
+    fun getLevels(): Map<UUID, Int> {
+        val (_, levels, _) = load()
+        return levels
+    }
+
+    fun getLastInterestTime(uuid: UUID): Long {
+        val (_, _, interestTimes) = load()
+        return interestTimes[uuid] ?: 0L
+    }
+
+    fun setLastInterestTime(uuid: UUID, time: Long) {
+        val (balances, levels, interestTimes) = load()
+        interestTimes[uuid] = time
+        save(balances, levels, interestTimes)
+    }
+
+    private fun load(): Triple<MutableMap<UUID, BigDecimal>, MutableMap<UUID, Int>, MutableMap<UUID, Long>> {
         val assetManager = get<AssetManager>(AssetManager::class.java)
         val content = runBlocking { assetManager.fetchStringAsset(this@PlayerNumericalStorageArtifactEntry) }
-        if (content.isNullOrBlank()) return mutableMapOf<UUID, BigDecimal>() to mutableMapOf()
+        if (content.isNullOrBlank()) return Triple(mutableMapOf(), mutableMapOf(), mutableMapOf())
         return runCatching {
             val obj = JsonParser.parseString(content).asJsonObject
 
@@ -48,11 +64,18 @@ import kotlinx.coroutines.runBlocking
                 levelsMap[uuid] = value
             }
 
-            balancesMap to levelsMap
-        }.getOrDefault(mutableMapOf<UUID, BigDecimal>() to mutableMapOf())
+            val interestMap: MutableMap<UUID, Long> = mutableMapOf()
+            obj.getAsJsonObject("interest_times")?.entrySet()?.forEach { (id, time) ->
+                val uuid = runCatching { UUID.fromString(id) }.getOrNull() ?: return@forEach
+                val value = runCatching { time.asLong }.getOrNull() ?: return@forEach
+                interestMap[uuid] = value
+            }
+
+            Triple(balancesMap, levelsMap, interestMap)
+        }.getOrDefault(Triple(mutableMapOf(), mutableMapOf(), mutableMapOf()))
     }
 
-    private fun save(balances: Map<UUID, BigDecimal>, levels: Map<UUID, Int>) {
+    private fun save(balances: Map<UUID, BigDecimal>, levels: Map<UUID, Int>, interestTimes: Map<UUID, Long>) {
         val assetManager = get<AssetManager>(AssetManager::class.java)
 
         val balanceJson = JsonObject().apply {
@@ -67,9 +90,16 @@ import kotlinx.coroutines.runBlocking
             }
         }
 
+        val interestJson = JsonObject().apply {
+            interestTimes.forEach { (id, value) ->
+                addProperty(id.toString(), value)
+            }
+        }
+
         val root = JsonObject().apply {
             add("balances", balanceJson)
             add("levels", levelJson)
+            add("interest_times", interestJson)
         }
 
         runBlocking {
@@ -92,38 +122,34 @@ import kotlinx.coroutines.runBlocking
     }
 
     fun getBalance(uuid: UUID): BigDecimal {
-        val (balances, _) = load()
+        val (balances, _, _) = load()
         return balances[uuid] ?: BigDecimal.ZERO
     }
 
     fun getBalances(): Map<UUID, BigDecimal> {
-        val (balances, _) = load()
+        val (balances, _, _) = load()
         return balances
     }
 
     fun setBalance(uuid: UUID, amount: BigDecimal) {
-        val (balances, levels) = load()
+        val (balances, levels, interestTimes) = load()
         balances[uuid] = amount
-        save(balances, levels)
+        save(balances, levels, interestTimes)
     }
 
     fun getLevel(uuid: UUID): Int {
-        val (_, levels) = load()
+        val (_, levels, _) = load()
         return levels[uuid] ?: 1
     }
 
     fun setLevel(uuid: UUID, level: Int) {
-        val (balances, levels) = load()
+        val (balances, levels, interestTimes) = load()
         levels[uuid] = level.coerceAtLeast(1)
-        save(balances, levels)
+        save(balances, levels, interestTimes)
     }
 
     fun resetLevel(uuid: UUID) {
         setLevel(uuid, 1)
     }
-
-    fun getLevels(): Map<UUID, Int> {
-        val (_, levels) = load()
-        return levels
-    }
 }
+

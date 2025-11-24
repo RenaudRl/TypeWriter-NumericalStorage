@@ -56,22 +56,7 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                     val definition = def()
                     val art = definition.artifact.get() ?: return@executePlayerOrTarget
                     val addAmount = BigDecimal.valueOf(amt())
-                    if (definition.classicLeveling) {
-                        var levelNumber = art.getLevel(target.uniqueId)
-                        var level = definition.levels.getOrNull(levelNumber - 1) ?: return@executePlayerOrTarget
-                        var remaining = art.getBalance(target.uniqueId) + addAmount
-                        while (levelNumber < definition.levels.size && remaining >= BigDecimal.valueOf(level.limit)) {
-                            remaining -= BigDecimal.valueOf(level.limit)
-                            levelNumber++
-                            val nextLevel = definition.levels.getOrNull(levelNumber - 1) ?: break
-                            target.sendLevelUp(definition, nextLevel, levelNumber)
-                            level = nextLevel
-                        }
-                        art.setBalance(target.uniqueId, remaining)
-                        art.setLevel(target.uniqueId, levelNumber)
-                    } else {
-                        art.addBalance(target.uniqueId, addAmount)
-                    }
+                    art.addBalance(target.uniqueId, addAmount)
                     sender.msg("Added ${amt()} to ${target.name}.")
                 }
             }
@@ -106,3 +91,4 @@ private fun Player.sendLevelUp(
     )
     level.levelUpTrigger.triggerFor(this, context())
 }
+

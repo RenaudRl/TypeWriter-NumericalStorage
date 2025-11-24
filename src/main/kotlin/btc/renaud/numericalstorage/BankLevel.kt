@@ -21,3 +21,4 @@ data class BankLevel(
     @Help("Message when withdraw/remove xp fails. Placeholders: {limit} {amount} {prefix}")
     val withdrawErrorMessage: String = ""
 )
+
