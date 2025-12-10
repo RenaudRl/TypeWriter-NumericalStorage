@@ -76,6 +76,17 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
             }
         }
     }
+
+    literal("open") {
+        withPermission("typewriter.ns.open")
+        entry<NumericalStorageDefinitionEntry>("definition") { def ->
+            executePlayerOrTarget { target ->
+                val definition = def()
+                val menu = NumericalStorageMenu(target, definition)
+                target.openInventory(menu.inventory)
+            }
+        }
+    }
 }
 
 private fun Player.sendLevelUp(
@@ -89,6 +100,8 @@ private fun Player.sendLevelUp(
         parsed("prefix", definition.prefix),
         parsed("level", levelNumber.toString())
     )
-    level.levelUpTrigger.triggerFor(this, context())
+    level.levelUpTriggers.forEach { triggerRef ->
+        triggerRef.triggerFor(this, context())
+    }
 }
 

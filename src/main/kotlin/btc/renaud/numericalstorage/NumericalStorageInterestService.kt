@@ -2,7 +2,6 @@ package btc.renaud.numericalstorage
 
 import com.typewritermc.core.entries.Query
 import com.typewritermc.core.extension.annotations.Singleton
-import com.typewritermc.engine.paper.utils.msg
 import com.typewritermc.engine.paper.utils.sendMiniWithResolvers
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed
 import org.bukkit.Bukkit
@@ -12,7 +11,9 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.plugin.Plugin
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.util.UUID
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 @Singleton
 class NumericalStorageInterestService(private val plugin: Plugin) : Listener {
@@ -27,12 +28,11 @@ class NumericalStorageInterestService(private val plugin: Plugin) : Listener {
         val definitions = Query.find(NumericalStorageDefinitionEntry::class)
 
         definitions.forEach { def ->
-            if (!def.interestEnabled || def.interestIntervalHours <= 0.0 || def.interestRate <= 0.0) return@forEach
-
+            if (!def.interestEnabled) return@forEach
+            
             val artifact = def.artifact.get() ?: return@forEach
-            val lastInterestTime = artifact.getLastInterestTime(player.uniqueId)
+            var lastInterestTime = artifact.getLastInterestTime(player.uniqueId)
             val currentTime = System.currentTimeMillis()
-            val intervalMillis = (def.interestIntervalHours * 3600 * 1000).toLong()
 
             // If never received interest, set current time as start
             if (lastInterestTime == 0L) {
@@ -40,50 +40,49 @@ class NumericalStorageInterestService(private val plugin: Plugin) : Listener {
                 return@forEach
             }
 
-            val timeDiff = currentTime - lastInterestTime
-            if (timeDiff >= intervalMillis) {
-                val intervalsPassed = timeDiff / intervalMillis
-                if (intervalsPassed > 0) {
-                    val balance = artifact.getBalance(player.uniqueId)
-                    if (balance > BigDecimal.ZERO) {
-                        // Determine applicable interest rate based on permissions
+            // Use CronExpression for interest calculation
+            val cron = def.interestCron
+            if (cron.expression.isBlank()) return@forEach
+            
+            try {
+                var nextTime = cron.nextTimeAfter(ZonedDateTime.ofInstant(Instant.ofEpochMilli(lastInterestTime), ZoneId.systemDefault()))
+                
+                var totalInterest = BigDecimal.ZERO
+                var currentBalance = artifact.getBalance(player.uniqueId)
+                var iterations = 0
+                
+                // Iterate through all missed intervals
+                while (nextTime.toInstant().toEpochMilli() <= currentTime && iterations < 100) {
+                    iterations++
+                    if (currentBalance > BigDecimal.ZERO) {
                         val applicableRate = getApplicableInterestRate(player, def)
                         val rate = BigDecimal.valueOf(applicableRate / 100.0)
-                        // Compound interest: Balance * (1 + rate)^intervals
-                        // Or simple interest for each interval? Usually compound.
-                        // Let's do simple calculation loop for now to be safe or just one big jump.
-                        // Ideally: NewBalance = Balance * (1 + rate)^intervals
+                        val interest = currentBalance.multiply(rate).setScale(2, RoundingMode.HALF_UP)
                         
-                        val multiplier = (BigDecimal.ONE + rate).pow(intervalsPassed.toInt())
-                        val newBalance = balance.multiply(multiplier).setScale(2, RoundingMode.HALF_UP)
-                        val interestAmount = newBalance.subtract(balance)
-
-                        if (interestAmount > BigDecimal.ZERO) {
-                            artifact.setBalance(player.uniqueId, newBalance)
-                            artifact.setLastInterestTime(player.uniqueId, currentTime) // Reset to now, or add intervals?
-                            // Better to add exact intervals to keep schedule? 
-                            // lastInterestTime + (intervals * intervalMillis)
-                            // But if they are offline for a month, they get interest for the month.
-                            // Let's set to currentTime to avoid "banking" time if we change config.
-                            // Actually, keeping schedule is better for "every 24h".
-                            
-                            val newLastTime = lastInterestTime + (intervalsPassed * intervalMillis)
-                            artifact.setLastInterestTime(player.uniqueId, newLastTime)
-
-                            player.sendMiniWithResolvers(
-                                def.interestMessage,
-                                parsed("amount", interestAmount.toPlainString()),
-                                parsed("new_balance", newBalance.toPlainString()),
-                                parsed("rate", def.interestRate.toString()),
-                                parsed("prefix", def.prefix)
-                            )
+                        if (interest > BigDecimal.ZERO) {
+                            currentBalance = currentBalance.add(interest)
+                            totalInterest = totalInterest.add(interest)
                         }
-                    } else {
-                         // Just update time if balance is zero
-                         val newLastTime = lastInterestTime + (intervalsPassed * intervalMillis)
-                         artifact.setLastInterestTime(player.uniqueId, newLastTime)
                     }
+                    lastInterestTime = nextTime.toInstant().toEpochMilli()
+                    nextTime = cron.nextTimeAfter(nextTime)
                 }
+                
+                if (totalInterest > BigDecimal.ZERO) {
+                    artifact.setBalance(player.uniqueId, currentBalance)
+                    player.sendMiniWithResolvers(
+                        def.interestMessage,
+                        parsed("amount", totalInterest.toPlainString()),
+                        parsed("new_balance", currentBalance.toPlainString()),
+                        parsed("rate", def.interestRate.toString()),
+                        parsed("prefix", def.prefix)
+                    )
+                }
+                // Update time even if no interest was applied (e.g. 0 balance)
+                artifact.setLastInterestTime(player.uniqueId, lastInterestTime)
+
+            } catch (e: Exception) {
+                plugin.logger.warning("Invalid cron expression for NumericalStorage ${def.id}: ${def.interestCron.expression}")
             }
         }
     }
