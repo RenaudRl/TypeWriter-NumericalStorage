@@ -25,7 +25,16 @@ class NumericalStorageMenuListener(private val plugin: Plugin) : Listener {
 
     @EventHandler
     fun onInventoryClick(event: InventoryClickEvent) {
-        val holder = event.view.topInventory.holder as? NumericalStorageMenu ?: return
+        val holderRaw = try {
+            val top = event.view.topInventory
+            val h = top.holder ?: return
+            // Use class name comparison to avoid ClassNotFoundException after hot reload
+            if (h::class.java.name != NumericalStorageMenu::class.java.name) return
+            h as NumericalStorageMenu
+        } catch (e: Throwable) {
+            return
+        }
+        val holder = holderRaw
         if (event.clickedInventory != event.view.topInventory) return // Allow bottom inventory interaction? Maybe not for safety.
         // Actually, usually we cancel top inventory clicks.
         

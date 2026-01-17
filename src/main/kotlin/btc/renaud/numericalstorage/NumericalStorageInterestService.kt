@@ -51,13 +51,34 @@ class NumericalStorageInterestService(private val plugin: Plugin) : Listener {
                 var currentBalance = artifact.getBalance(player.uniqueId)
                 var iterations = 0
                 
+                // Get current level limit (capacity)
+                val playerLevel = artifact.getLevel(player.uniqueId)
+                val bankLevel = def.levels.getOrNull(playerLevel - 1)
+                val capacityLimit = bankLevel?.limit?.let { BigDecimal.valueOf(it) }
+                
                 // Iterate through all missed intervals
                 while (nextTime.toInstant().toEpochMilli() <= currentTime && iterations < 100) {
                     iterations++
+                    // Only apply interest if balance is positive AND below capacity limit
                     if (currentBalance > BigDecimal.ZERO) {
+                        // Skip if already at or over capacity
+                        if (capacityLimit != null && currentBalance >= capacityLimit) {
+                            lastInterestTime = nextTime.toInstant().toEpochMilli()
+                            nextTime = cron.nextTimeAfter(nextTime)
+                            continue
+                        }
+                        
                         val applicableRate = getApplicableInterestRate(player, def)
                         val rate = BigDecimal.valueOf(applicableRate / 100.0)
-                        val interest = currentBalance.multiply(rate).setScale(2, RoundingMode.HALF_UP)
+                        var interest = currentBalance.multiply(rate).setScale(2, RoundingMode.HALF_UP)
+                        
+                        // Cap interest so balance doesn't exceed capacity
+                        if (capacityLimit != null) {
+                            val remainingCapacity = capacityLimit.subtract(currentBalance)
+                            if (interest > remainingCapacity) {
+                                interest = remainingCapacity.setScale(2, RoundingMode.HALF_UP)
+                            }
+                        }
                         
                         if (interest > BigDecimal.ZERO) {
                             currentBalance = currentBalance.add(interest)

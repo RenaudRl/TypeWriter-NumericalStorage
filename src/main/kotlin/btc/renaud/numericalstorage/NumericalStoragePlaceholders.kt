@@ -13,11 +13,22 @@ class NumericalStoragePlaceholders : PlaceholderHandler {
     override fun onPlaceholderRequest(player: Player?, params: String): String? {
         player ?: return null
         if (!params.startsWith("ns_")) return null
-        val parts = params.substringAfter("ns_").split("_", limit = 2)
-        val type = parts.firstOrNull() ?: return null
-        val defId = parts.getOrNull(1) ?: return null
+        
+        val content = params.substringAfter("ns_")
+        
+        // Parse from the end: the last part after the final underscore is the defId
+        // Everything before that is the type (supports multi-word types like interest_cooldown)
+        val lastUnderscoreIndex = content.lastIndexOf('_')
+        if (lastUnderscoreIndex == -1) return null
+        
+        val type = content.substring(0, lastUnderscoreIndex)
+        val defId = content.substring(lastUnderscoreIndex + 1)
+        
+        if (type.isBlank() || defId.isBlank()) return null
+        
         val definition = Query.findById<NumericalStorageDefinitionEntry>(defId) ?: return null
         val artifact = definition.artifact.get()
+        
         return when (type.lowercase()) {
             "balance" -> artifact?.getBalance(player.uniqueId)?.toPlainString()
             "level" -> artifact?.getLevel(player.uniqueId)?.toString()
@@ -28,17 +39,21 @@ class NumericalStoragePlaceholders : PlaceholderHandler {
             }
             "interest" -> NumericalStorageInterestService.getApplicableInterestRate(player, definition).toString()
             "interest_cooldown" -> {
-                val cron = definition.interestCron
-                if (cron.expression.isNotBlank()) {
-                    try {
-                        val nextTime = cron.nextTimeAfter(ZonedDateTime.now())
-                        val duration = Duration.between(ZonedDateTime.now(), nextTime)
-                        duration.asReadable()
-                    } catch (e: Exception) {
-                        "Error"
-                    }
-                } else {
+                if (!definition.interestEnabled) {
                     "Disabled"
+                } else {
+                    val cron = definition.interestCron
+                    if (cron.expression.isNotBlank()) {
+                        try {
+                            val nextTime = cron.nextTimeAfter(ZonedDateTime.now())
+                            val duration = Duration.between(ZonedDateTime.now(), nextTime)
+                            duration.asReadable()
+                        } catch (e: Exception) {
+                            "Error"
+                        }
+                    } else {
+                        "Disabled"
+                    }
                 }
             }
             "name" -> definition.displayName.parsePlaceholders(player)
@@ -53,12 +68,12 @@ class NumericalStoragePlaceholders : PlaceholderHandler {
         val hours = toHoursPart()
         val minutes = toMinutesPart()
         val seconds = toSecondsPart()
-        return buildString {
-            if (days > 0) append("$days d ")
-            if (hours > 0) append("$hours h ")
-            if (minutes > 0) append("$minutes m ")
-            if (seconds > 0) append("$seconds s")
+        val result = buildString {
+            if (days > 0) append("${days}j ")
+            if (hours > 0) append("${hours}h ")
+            if (minutes > 0) append("${minutes}m ")
+            if (seconds > 0 || isEmpty()) append("${seconds}s")
         }.trim()
+        return result.ifEmpty { "0s" }
     }
 }
-

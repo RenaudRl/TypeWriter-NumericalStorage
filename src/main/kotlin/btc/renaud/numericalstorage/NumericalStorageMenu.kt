@@ -11,7 +11,7 @@ import org.bukkit.inventory.InventoryHolder
 class NumericalStorageMenu(
     val player: Player,
     val definition: NumericalStorageDefinitionEntry
-) : InventoryHolder {
+) : InventoryHolder { // Rebuild trigger
 
     private val config = definition.menu
     private val inventory: Inventory = server.createInventory(

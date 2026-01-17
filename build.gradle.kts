@@ -1,3 +1,8 @@
+plugins {
+    kotlin("jvm") version "2.2.10"
+    id("com.typewritermc.module-plugin")
+}
+
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
@@ -5,11 +10,7 @@ repositories {
 }
 
 dependencies {
-}
-
-plugins {
-    kotlin("jvm") version "2.2.10"
-    id("com.typewritermc.module-plugin") version "2.0.0"
+    compileOnly(project(":TypeWriter-ProfilesExtension"))
 }
 
 group = "btc.renaud"
@@ -26,7 +27,7 @@ typewriter {
             NumericalStorage is a TypeWriter extension that provides a comprehensive numerical storage system.
             NumericalStorage is a TypeWriter extension that provides a comprehensive numerical storage system.
         """.trimIndent()
-        engineVersion = "0.9.0-beta-166"
+        engineVersion = file("../../version.txt").readText().trim()
         channel = com.typewritermc.moduleplugin.ReleaseChannel.BETA
 
         dependencies {

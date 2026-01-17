@@ -12,6 +12,7 @@ import org.koin.java.KoinJavaComponent.get
 import java.math.BigDecimal
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
+import btc.renaud.profiles.api.ProfilesAPI
 
 @Entry(
     "player_numericalstorage_artifact",
@@ -20,79 +21,88 @@ import kotlinx.coroutines.runBlocking
     "fa6-solid:box-archive",
 )
 @Tags("numericalstorage", "artifact")
-    class PlayerNumericalStorageArtifactEntry(
-        override val id: String = "",
-        override val name: String = "",
-        @Help("Unique artifact identifier.")
-        override val artifactId: String = "player_numericalstorage",
-    ) : ArtifactEntry {
+class PlayerNumericalStorageArtifactEntry(
+    override val id: String = "",
+    override val name: String = "",
+    @Help("Unique artifact identifier.")
+    override val artifactId: String = "player_numericalstorage",
+) : ArtifactEntry {
 
-    fun getLevels(): Map<UUID, Int> {
+    private fun getStorageKey(uuid: UUID): String {
+        return try {
+            if (ProfilesAPI.isPerProfileExtension("NumericalStorage")) {
+                ProfilesAPI.getProfileStorageKeyByUuid(uuid, uuid.toString())
+            } else {
+                uuid.toString()
+            }
+        } catch (t: Throwable) {
+            uuid.toString()
+        }
+    }
+
+    fun getLevels(): Map<String, Int> {
         val (_, levels, _) = load()
         return levels
     }
 
     fun getLastInterestTime(uuid: UUID): Long {
         val (_, _, interestTimes) = load()
-        return interestTimes[uuid] ?: 0L
+        return interestTimes[getStorageKey(uuid)] ?: 0L
     }
 
     fun setLastInterestTime(uuid: UUID, time: Long) {
         val (balances, levels, interestTimes) = load()
-        interestTimes[uuid] = time
+        interestTimes[getStorageKey(uuid)] = time
         save(balances, levels, interestTimes)
     }
 
-    private fun load(): Triple<MutableMap<UUID, BigDecimal>, MutableMap<UUID, Int>, MutableMap<UUID, Long>> {
+    private fun load(): Triple<MutableMap<String, BigDecimal>, MutableMap<String, Int>, MutableMap<String, Long>> {
         val assetManager = get<AssetManager>(AssetManager::class.java)
         val content = runBlocking { assetManager.fetchStringAsset(this@PlayerNumericalStorageArtifactEntry) }
         if (content.isNullOrBlank()) return Triple(mutableMapOf(), mutableMapOf(), mutableMapOf())
         return runCatching {
             val obj = JsonParser.parseString(content).asJsonObject
 
-            val balancesMap: MutableMap<UUID, BigDecimal> = mutableMapOf()
+            val balancesMap: MutableMap<String, BigDecimal> = mutableMapOf()
             obj.getAsJsonObject("balances")?.entrySet()?.forEach { (id, amt) ->
-                val uuid = runCatching { UUID.fromString(id) }.getOrNull() ?: return@forEach
                 val value = runCatching { amt.asString.toBigDecimal() }.getOrNull() ?: return@forEach
-                balancesMap[uuid] = value
+                balancesMap[id] = value
             }
 
-            val levelsMap: MutableMap<UUID, Int> = mutableMapOf()
+            val levelsMap: MutableMap<String, Int> = mutableMapOf()
             obj.getAsJsonObject("levels")?.entrySet()?.forEach { (id, lvl) ->
-                val uuid = runCatching { UUID.fromString(id) }.getOrNull() ?: return@forEach
                 val value = runCatching { lvl.asInt }.getOrNull() ?: return@forEach
-                levelsMap[uuid] = value
+                levelsMap[id] = value
             }
 
-            val interestMap: MutableMap<UUID, Long> = mutableMapOf()
+            val interestMap: MutableMap<String, Long> = mutableMapOf()
             obj.getAsJsonObject("interest_times")?.entrySet()?.forEach { (id, time) ->
-                val uuid = runCatching { UUID.fromString(id) }.getOrNull() ?: return@forEach
                 val value = runCatching { time.asLong }.getOrNull() ?: return@forEach
-                interestMap[uuid] = value
+                interestMap[id] = value
             }
 
             Triple(balancesMap, levelsMap, interestMap)
         }.getOrDefault(Triple(mutableMapOf(), mutableMapOf(), mutableMapOf()))
     }
 
-    private fun save(balances: Map<UUID, BigDecimal>, levels: Map<UUID, Int>, interestTimes: Map<UUID, Long>) {
+    private fun save(balances: Map<String, BigDecimal>, levels: Map<String, Int>, interestTimes: Map<String, Long>) {
         val assetManager = get<AssetManager>(AssetManager::class.java)
 
         val balanceJson = JsonObject().apply {
             balances.forEach { (id, value) ->
-                addProperty(id.toString(), value.toPlainString())
+                addProperty(id, value.toPlainString())
             }
         }
 
         val levelJson = JsonObject().apply {
             levels.forEach { (id, value) ->
-                addProperty(id.toString(), value)
+                addProperty(id, value)
             }
         }
 
         val interestJson = JsonObject().apply {
             interestTimes.forEach { (id, value) ->
-                addProperty(id.toString(), value)
+                addProperty(id, value)
             }
         }
 
@@ -123,28 +133,28 @@ import kotlinx.coroutines.runBlocking
 
     fun getBalance(uuid: UUID): BigDecimal {
         val (balances, _, _) = load()
-        return balances[uuid] ?: BigDecimal.ZERO
+        return balances[getStorageKey(uuid)] ?: BigDecimal.ZERO
     }
 
-    fun getBalances(): Map<UUID, BigDecimal> {
+    fun getBalances(): Map<String, BigDecimal> {
         val (balances, _, _) = load()
         return balances
     }
 
     fun setBalance(uuid: UUID, amount: BigDecimal) {
         val (balances, levels, interestTimes) = load()
-        balances[uuid] = amount
+        balances[getStorageKey(uuid)] = amount
         save(balances, levels, interestTimes)
     }
 
     fun getLevel(uuid: UUID): Int {
         val (_, levels, _) = load()
-        return levels[uuid] ?: 1
+        return levels[getStorageKey(uuid)] ?: 1
     }
 
     fun setLevel(uuid: UUID, level: Int) {
         val (balances, levels, interestTimes) = load()
-        levels[uuid] = level.coerceAtLeast(1)
+        levels[getStorageKey(uuid)] = level.coerceAtLeast(1)
         save(balances, levels, interestTimes)
     }
 
@@ -152,4 +162,3 @@ import kotlinx.coroutines.runBlocking
         setLevel(uuid, 1)
     }
 }
-

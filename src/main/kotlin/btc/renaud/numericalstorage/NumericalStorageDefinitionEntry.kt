@@ -30,8 +30,8 @@ class NumericalStorageDefinitionEntry(
     val interestEnabled: Boolean = false,
     @Help("Interest rate in percentage (e.g. 2.0 for 2%).")
     val interestRate: Double = 0.0,
-    @Help("Message when interest is applied. Placeholders: {amount} {new_balance} {rate} {prefix}")
-    val interestMessage: String = "<green>You received {amount} interest! New balance: {new_balance}",
+    @Help("Message when interest is applied. Placeholders: <amount> <new_balance> <rate> <prefix>")
+    val interestMessage: String = "<green>You received <amount> interest! New balance: <new_balance>",
     @Help("List of permission based interest rates. Each entry defines a permission and a specific rate.")
     val interestRates: List<InterestRatePermission> = emptyList(),
     @Help("Configured levels. Messages support placeholders: {limit}, {amount}, {new_balance}, {prefix}, {level}")
