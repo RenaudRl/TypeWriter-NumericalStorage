@@ -1,5 +1,3 @@
-rootProject.name = "NumericalStorageExtension"
-
 pluginManagement {
     repositories {
         mavenCentral()
@@ -7,3 +5,6 @@ pluginManagement {
         maven("https://maven.typewritermc.com/beta")
     }
 }
+
+rootProject.name = "NumericalStorageExtension"
+
