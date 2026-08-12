@@ -15,25 +15,25 @@ import org.bukkit.plugin.RegisteredServiceProvider
 @Suppress("DEPRECATION")
 object VaultEconomyProvider {
 
-    private val economy: Economy? by lazy {
-        if (Bukkit.getPluginManager().getPlugin("Vault") == null) return@lazy null
+    private fun economy(): Economy? {
+        if (Bukkit.getPluginManager().getPlugin("Vault") == null) return null
         val rsp: RegisteredServiceProvider<Economy>? =
             Bukkit.getServicesManager().getRegistration(Economy::class.java)
-        rsp?.provider
+        return rsp?.provider
     }
 
-    val isAvailable: Boolean get() = economy != null
+    val isAvailable: Boolean get() = economy() != null
 
-    fun getBalance(player: Player): Double = economy?.getBalance(player) ?: 0.0
+    fun getBalance(player: Player): Double = economy()?.getBalance(player) ?: 0.0
 
     fun withdrawPlayer(player: Player, amount: Double): Boolean {
-        val econ = economy ?: return false
+        val econ = economy() ?: return false
         val response: EconomyResponse = econ.withdrawPlayer(player, amount)
         return response.transactionSuccess()
     }
 
     fun depositPlayer(player: Player, amount: Double): Boolean {
-        val econ = economy ?: return false
+        val econ = economy() ?: return false
         val response: EconomyResponse = econ.depositPlayer(player, amount)
         return response.transactionSuccess()
     }

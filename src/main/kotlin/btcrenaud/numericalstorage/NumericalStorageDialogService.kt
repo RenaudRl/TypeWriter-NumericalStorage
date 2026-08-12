@@ -33,9 +33,9 @@ object NumericalStorageDialogService {
         val submitAction = ActionButton.builder(Component.text(config.submitButton))
             .action(io.papermc.paper.registry.data.dialog.action.DialogAction.customClick({ result, _ ->
                 val text = result.getText(inputKey) ?: ""
-                val amount = text.toDoubleOrNull()
+                val amount = text.toFinitePositiveDoubleOrNull()
 
-                if (amount != null && amount > 0) {
+                if (amount != null) {
                     onAmount(amount)
                 } else {
                     player.sendMessage(config.invalidInputMessage.asMini())

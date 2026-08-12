@@ -72,9 +72,9 @@ data class TransactionConfig(
     val removeSuccessMessage: String = "<green>Successfully removed <amount>! New balance: <new_balance>",
     @Help("Message when removing exceeds available balance. Placeholders: <amount>, <balance>, <limit>, <prefix>")
     val removeErrorMessage: String = "<red>Cannot remove <amount>. Insufficient balance (<balance>).",
-    @Help("(INTERNAL mode) Command executed after successful DEPOSIT. Placeholders: {amount}, {player}. Ignored in VAULT mode.")
+    @Help("(INTERNAL mode) Command executed before the persistent DEPOSIT mutation. Placeholders: {amount}, {player}. Ignored in VAULT mode.")
     val addCommand: String = "",
-    @Help("(INTERNAL mode) Command executed after successful WITHDRAW. Placeholders: {amount}, {player}. Ignored in VAULT mode.")
+    @Help("(INTERNAL mode) Command executed before the persistent WITHDRAW mutation. Placeholders: {amount}, {player}. Ignored in VAULT mode.")
     val removeCommand: String = "",
     @Help("Message when no funds available for transaction. Placeholders: <prefix>")
     val noFundsMessage: String = "<red>No funds available.",

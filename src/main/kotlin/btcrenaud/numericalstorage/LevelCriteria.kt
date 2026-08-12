@@ -39,14 +39,17 @@ data class LevelCriteria(
     /**
      * Deduct the required value from the player if deductOnMet is true.
      */
-    fun deduct(player: Player) {
-        if (!deductOnMet) return
+    suspend fun deduct(player: Player): Boolean {
+        if (!deductOnMet) return true
         if (deductCommand.isNotBlank()) {
             val cmd = deductCommand
                 .replace("{amount}", requiredValue.toString())
                 .replace("{player}", player.name)
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+            return NumericalStorageCoroutines.onGlobalThread {
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+            } == true
         }
+        return true
     }
 
     /**

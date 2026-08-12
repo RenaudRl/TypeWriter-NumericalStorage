@@ -28,9 +28,16 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
             executePlayerOrTarget { target ->
                 val definition = def()
                 val art = definition.artifact.get() ?: return@executePlayerOrTarget
-                art.resetLevel(target.uniqueId)
-                art.setBalance(target.uniqueId, BigDecimal.ZERO)
-                sender.msg("Numerical storage reset for ${target.name}.")
+                NumericalStorageCoroutines.launch {
+                    art.update { balances, levels, _ ->
+                        val key = art.storageKey(target.uniqueId, definition.profileMode)
+                        levels[key] = 1
+                        balances[key] = BigDecimal.ZERO
+                    }
+                    NumericalStorageCoroutines.onPlayerThread(target) {
+                        sender.msg("Numerical storage reset for ${target.name}.")
+                    }
+                }
             }
         }
     }
@@ -43,10 +50,18 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                     val definition = def()
                     val art = definition.artifact.get() ?: return@executePlayerOrTarget
                     val levelVal = lvl()
-                    art.setLevel(target.uniqueId, levelVal)
-                    sender.msg("Set numerical storage level to $levelVal for ${target.name}.")
-                    definition.levels.getOrNull(levelVal - 1)?.let { level ->
-                        target.sendLevelUp(definition, level, levelVal)
+                    NumericalStorageCoroutines.launch {
+                        art.update { balances, levels, _ ->
+                            val key = art.storageKey(target.uniqueId, definition.profileMode)
+                            levels[key] = levelVal.coerceAtLeast(1)
+                            balances[key] = BigDecimal.ZERO
+                        }
+                        NumericalStorageCoroutines.onPlayerThread(target) {
+                            sender.msg("Set numerical storage level to $levelVal for ${target.name}.")
+                            definition.levels.getOrNull(levelVal - 1)?.let { level ->
+                                target.sendLevelUp(definition, level, levelVal)
+                            }
+                        }
                     }
                 }
             }
@@ -60,9 +75,13 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                 executePlayerOrTarget { target ->
                     val definition = def()
                     val art = definition.artifact.get() ?: return@executePlayerOrTarget
-                    val addAmount = BigDecimal.valueOf(amt())
-                    art.addBalance(target.uniqueId, addAmount)
-                    sender.msg("Added ${amt()} to ${target.name}.")
+                    val amount = amt().toFinitePositiveAmountOrNull() ?: return@executePlayerOrTarget
+                    NumericalStorageCoroutines.launch {
+                        art.addBalance(target.uniqueId, amount, definition.profileMode)
+                        NumericalStorageCoroutines.onPlayerThread(target) {
+                            sender.msg("Added $amount to ${target.name}.")
+                        }
+                    }
                 }
             }
         }
@@ -75,8 +94,13 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                 executePlayerOrTarget { target ->
                     val definition = def()
                     val art = definition.artifact.get() ?: return@executePlayerOrTarget
-                    art.removeBalance(target.uniqueId, BigDecimal.valueOf(amt()))
-                    sender.msg("Removed ${amt()} from ${target.name}.")
+                    val amount = amt().toFinitePositiveAmountOrNull() ?: return@executePlayerOrTarget
+                    NumericalStorageCoroutines.launch {
+                        art.removeBalance(target.uniqueId, amount, definition.profileMode)
+                        NumericalStorageCoroutines.onPlayerThread(target) {
+                            sender.msg("Removed $amount from ${target.name}.")
+                        }
+                    }
                 }
             }
         }

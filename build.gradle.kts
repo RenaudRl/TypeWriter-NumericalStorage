@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     kotlin("jvm") version "2.3.20"
     id("com.typewritermc.module-plugin") version "2.1.0"
 }
@@ -11,16 +11,16 @@ repositories {
     maven("https://maven.typewritermc.com/beta/")
     maven("https://maven.typewritermc.com/external")
     maven("https://repo.codemc.io/repository/creatorfromhell")
-    mavenLocal()
 }
 
 dependencies {
     compileOnly(project(":Typewriter-OmniGUIExtension"))
     compileOnly("net.milkbowl.vault:VaultUnlockedAPI:2.16")
+    testImplementation(kotlin("test"))
 }
 
 group = "btc.renaud"
-version = "0.0.2"
+version = "0.9"
 
 typewriter {
     namespace = "btcrenaud"

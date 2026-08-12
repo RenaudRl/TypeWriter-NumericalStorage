@@ -17,6 +17,8 @@ import btcrenaud.numericalstorage.TransactionButtonConfig
 import btcrenaud.numericalstorage.TransactionMode
 import btcrenaud.numericalstorage.TransactionType
 import btcrenaud.numericalstorage.VaultEconomyProvider
+import btcrenaud.numericalstorage.NumericalStorageCoroutines
+import btcrenaud.numericalstorage.toFinitePositiveDoubleOrNull
 import btcrenaud.numericalstorage.buildItem
 import com.typewritermc.core.entries.Query
 import com.typewritermc.core.entries.ref
@@ -26,13 +28,15 @@ import com.typewritermc.engine.paper.entry.entries.get
 import com.typewritermc.engine.paper.entry.triggerFor
 import com.typewritermc.engine.paper.extensions.placeholderapi.parsePlaceholders
 import com.typewritermc.engine.paper.utils.asMini
-import com.typewritermc.engine.paper.utils.sendMiniWithResolvers
+import com.typewritermc.engine.paper.utils.sendMiniWithResolvers as sendMiniWithResolversUnsafe
 import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import java.math.BigDecimal
+import java.util.logging.Level
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 
 /**
  * Handles all transaction logic dispatched from GUI button interactions.
@@ -41,11 +45,21 @@ import java.math.BigDecimal
 @Singleton
 class NumericalStorageTransactionHandler {
 
+    private suspend fun Player.sendMiniWithResolvers(message: String, vararg resolvers: TagResolver) {
+        NumericalStorageCoroutines.onPlayerThread(this) {
+            sendMiniWithResolversUnsafe(message, *resolvers)
+        }
+    }
+
     /**
      * Handle a transaction request from a GUI button click.
      * Called via: "numstorage tx <action> <definitionId>"
      */
     fun handleTransaction(player: Player, action: String, definitionId: String) {
+        NumericalStorageCoroutines.launch { handleTransactionAsync(player, action, definitionId) }
+    }
+
+    private suspend fun handleTransactionAsync(player: Player, action: String, definitionId: String) {
         val definition = findDefinitionById(definitionId) ?: return
         val artifact = definition.artifact.get() ?: return
 
@@ -53,19 +67,23 @@ class NumericalStorageTransactionHandler {
             // ---- Deposit ----
             action == "deposit_all" -> handleDeposit(player, definition, artifact, AmountType.ALL)
             action == "deposit_custom" -> {
-                player.closeInventory()
-                NumericalStorageDialogService.openAmountDialog(player, definition.menu.customAmountDialog) { amount ->
-                    executeTransaction(player, definition, artifact, TransactionType.DEPOSIT, amount)
-                    reopenMenu(player, definition)
+                NumericalStorageCoroutines.onPlayerThread(player) {
+                    player.closeInventory()
+                    NumericalStorageDialogService.openAmountDialog(player, definition.menu.customAmountDialog) { amount ->
+                        NumericalStorageCoroutines.launch {
+                            executeTransaction(player, definition, artifact, TransactionType.DEPOSIT, amount)
+                            reopenMenu(player, definition)
+                        }
+                    }
                 }
                 return
             }
             action.startsWith("deposit_fixed:") -> {
-                val amount = action.removePrefix("deposit_fixed:").toDoubleOrNull() ?: return
+                val amount = action.removePrefix("deposit_fixed:").toFinitePositiveDoubleOrNull() ?: return
                 executeTransaction(player, definition, artifact, TransactionType.DEPOSIT, amount)
             }
             action.startsWith("deposit_percent:") -> {
-                val percent = action.removePrefix("deposit_percent:").toDoubleOrNull() ?: return
+                val percent = action.removePrefix("deposit_percent:").toFinitePositiveDoubleOrNull() ?: return
                 val sourceAmount = getSourceAmount(player, definition)
                 val hasSource = definition.transaction.transactionMode == TransactionMode.VAULT
                     || definition.transaction.amountPlaceholder.isNotBlank()
@@ -83,20 +101,24 @@ class NumericalStorageTransactionHandler {
             // ---- Withdraw ----
             action == "withdraw_all" -> handleWithdraw(player, definition, artifact, AmountType.ALL)
             action == "withdraw_custom" -> {
-                player.closeInventory()
-                NumericalStorageDialogService.openAmountDialog(player, definition.menu.customAmountDialog) { amount ->
-                    executeTransaction(player, definition, artifact, TransactionType.WITHDRAW, amount)
-                    reopenMenu(player, definition)
+                NumericalStorageCoroutines.onPlayerThread(player) {
+                    player.closeInventory()
+                    NumericalStorageDialogService.openAmountDialog(player, definition.menu.customAmountDialog) { amount ->
+                        NumericalStorageCoroutines.launch {
+                            executeTransaction(player, definition, artifact, TransactionType.WITHDRAW, amount)
+                            reopenMenu(player, definition)
+                        }
+                    }
                 }
                 return
             }
             action.startsWith("withdraw_fixed:") -> {
-                val amount = action.removePrefix("withdraw_fixed:").toDoubleOrNull() ?: return
+                val amount = action.removePrefix("withdraw_fixed:").toFinitePositiveDoubleOrNull() ?: return
                 executeTransaction(player, definition, artifact, TransactionType.WITHDRAW, amount)
             }
             action.startsWith("withdraw_percent:") -> {
-                val percent = action.removePrefix("withdraw_percent:").toDoubleOrNull() ?: return
-                val storageBalance = artifact.getBalance(player.uniqueId).toDouble()
+                val percent = action.removePrefix("withdraw_percent:").toFinitePositiveDoubleOrNull() ?: return
+                val storageBalance = artifact.getBalanceAsync(player.uniqueId, definition.profileMode).toDouble()
                 if (storageBalance <= 0) {
                     player.sendMiniWithResolvers(
                         definition.transaction.noFundsMessage,
@@ -114,7 +136,7 @@ class NumericalStorageTransactionHandler {
                 val colonIdx = rest.indexOf(':')
                 if (colonIdx == -1) return
                 val targetId = rest.substring(0, colonIdx)
-                val amount = rest.substring(colonIdx + 1).toDoubleOrNull() ?: return
+                val amount = rest.substring(colonIdx + 1).toFinitePositiveDoubleOrNull() ?: return
                 handleTransfer(player, definition, artifact, targetId, amount)
             }
             action.startsWith("transfer_percent:") -> {
@@ -122,12 +144,12 @@ class NumericalStorageTransactionHandler {
                 val colonIdx = rest.indexOf(':')
                 if (colonIdx == -1) return
                 val targetId = rest.substring(0, colonIdx)
-                val percent = rest.substring(colonIdx + 1).toDoubleOrNull() ?: return
-                val sourceBalance = artifact.getBalance(player.uniqueId).toDouble()
+                val percent = rest.substring(colonIdx + 1).toFinitePositiveDoubleOrNull() ?: return
+                val sourceBalance = artifact.getBalanceAsync(player.uniqueId, definition.profileMode).toDouble()
                 if (sourceBalance <= 0) {
                     player.sendMiniWithResolvers(
                         definition.menu.transferInsufficientMessage,
-                        Placeholder.parsed("balance", artifact.getBalance(player.uniqueId).toPlainString()),
+                        Placeholder.parsed("balance", artifact.getBalanceAsync(player.uniqueId, definition.profileMode).toPlainString()),
                         Placeholder.parsed("prefix", definition.prefix)
                     )
                     return
@@ -137,7 +159,7 @@ class NumericalStorageTransactionHandler {
             }
             action.startsWith("transfer_all:") -> {
                 val targetId = action.removePrefix("transfer_all:")
-                val sourceBalance = artifact.getBalance(player.uniqueId).toDouble()
+                val sourceBalance = artifact.getBalanceAsync(player.uniqueId, definition.profileMode).toDouble()
                 handleTransfer(player, definition, artifact, targetId, sourceBalance)
             }
 
@@ -163,7 +185,7 @@ class NumericalStorageTransactionHandler {
         reopenMenu(player, definition)
     }
 
-    private fun handleDeposit(
+    private suspend fun handleDeposit(
         player: Player,
         definition: NumericalStorageDefinitionEntry,
         artifact: PlayerNumericalStorageArtifactEntry,
@@ -172,8 +194,8 @@ class NumericalStorageTransactionHandler {
         when (amountType) {
             AmountType.ALL -> {
                 val sourceAmount = getSourceAmount(player, definition)
-                val balance = artifact.getBalance(player.uniqueId)
-                val level = artifact.getLevel(player.uniqueId)
+                val balance = artifact.getBalanceAsync(player.uniqueId, definition.profileMode)
+                val level = artifact.getLevelAsync(player.uniqueId, definition.profileMode)
                 val levelConfig = definition.levels.getOrNull(level - 1)
                 val limit = levelConfig?.let { BigDecimal.valueOf(it.limit) } ?: BigDecimal.valueOf(Double.MAX_VALUE)
                 val remainingCapacity = limit.subtract(balance)
@@ -188,7 +210,7 @@ class NumericalStorageTransactionHandler {
         }
     }
 
-    private fun handleWithdraw(
+    private suspend fun handleWithdraw(
         player: Player,
         definition: NumericalStorageDefinitionEntry,
         artifact: PlayerNumericalStorageArtifactEntry,
@@ -196,19 +218,19 @@ class NumericalStorageTransactionHandler {
     ) {
         when (amountType) {
             AmountType.ALL -> {
-                val balance = artifact.getBalance(player.uniqueId)
+                val balance = artifact.getBalanceAsync(player.uniqueId, definition.profileMode)
                 executeTransaction(player, definition, artifact, TransactionType.WITHDRAW, balance.toDouble())
             }
             else -> {} // FIXED/PERCENTAGE/CUSTOM handled in handleTransaction directly
         }
     }
 
-    private fun handleLevelUp(
+    private suspend fun handleLevelUp(
         player: Player,
         definition: NumericalStorageDefinitionEntry,
         artifact: PlayerNumericalStorageArtifactEntry,
     ) {
-        val level = artifact.getLevel(player.uniqueId)
+        val level = artifact.getLevelAsync(player.uniqueId, definition.profileMode)
         val maxLevel = definition.levels.size
 
         if (level >= maxLevel) {
@@ -221,12 +243,16 @@ class NumericalStorageTransactionHandler {
 
         val currentLevelConfig = definition.levels[level - 1]
         val nextLevelConfig = definition.levels[level]
-        val balance = artifact.getBalance(player.uniqueId)
+        val balance = artifact.getBalanceAsync(player.uniqueId, definition.profileMode)
 
         val criteriaNotMet = nextLevelConfig.criteria.filter { criteria ->
             val currentValue = when (criteria.mode) {
-                CriteriaMode.PLACEHOLDER -> criteria.placeholder.parsePlaceholders(player).toDoubleOrNull() ?: 0.0
-                CriteriaMode.FACT -> criteria.fact.get()?.readForPlayersGroup(player)?.value?.toDouble() ?: 0.0
+                CriteriaMode.PLACEHOLDER -> NumericalStorageCoroutines.onPlayerThread(player) {
+                    criteria.placeholder.parsePlaceholders(player).toDoubleOrNull()
+                } ?: 0.0
+                CriteriaMode.FACT -> NumericalStorageCoroutines.onPlayerThread(player) {
+                    criteria.fact.get()?.readForPlayersGroup(player)?.value?.toDouble()
+                } ?: 0.0
             }
             !criteria.isMet(currentValue)
         }
@@ -239,6 +265,7 @@ class NumericalStorageTransactionHandler {
             return
         }
 
+        var internalDeduction = BigDecimal.ZERO
         if (nextLevelConfig.criteria.isEmpty()) {
             val legacyCost = BigDecimal.valueOf(currentLevelConfig.limit)
             if (balance < legacyCost) {
@@ -249,21 +276,34 @@ class NumericalStorageTransactionHandler {
                 )
                 return
             }
-            artifact.setBalance(player.uniqueId, balance.subtract(legacyCost))
+            internalDeduction = legacyCost
         } else {
-            nextLevelConfig.criteria.forEach { it.deduct(player) }
+            if (nextLevelConfig.criteria.any { !it.deduct(player) }) {
+                player.sendMiniWithResolvers(
+                    definition.menu.notEnoughFundsMessage,
+                    Placeholder.parsed("prefix", definition.prefix)
+                )
+                return
+            }
             nextLevelConfig.criteria.forEach { criteria ->
                 if (criteria.deductOnMet && criteria.mode == CriteriaMode.PLACEHOLDER) {
-                    val internalPrefix = "%typewriter_ns_balance_${definition.id}%"
-                    if (criteria.placeholder.startsWith(internalPrefix)) {
-                        artifact.removeBalance(player.uniqueId, BigDecimal.valueOf(criteria.requiredValue))
+                    val internalPrefixes = listOf(
+                        "%typewriter_ns_balance_${definition.id}%",
+                        "<ns_balance:${definition.id}>"
+                    )
+                    if (internalPrefixes.any(criteria.placeholder::startsWith)) {
+                        internalDeduction += BigDecimal.valueOf(criteria.requiredValue)
                     }
                 }
             }
         }
 
         val nextLevelNumber = level + 1
-        artifact.setLevel(player.uniqueId, nextLevelNumber)
+        artifact.update { balances, levels, _ ->
+            val key = artifact.storageKey(player.uniqueId, definition.profileMode)
+            if (internalDeduction > BigDecimal.ZERO) balances[key] = (balances[key] ?: BigDecimal.ZERO).subtract(internalDeduction).max(BigDecimal.ZERO)
+            levels[key] = nextLevelNumber
+        }
 
         player.sendMiniWithResolvers(
             nextLevelConfig.levelUpMessage,
@@ -273,18 +313,20 @@ class NumericalStorageTransactionHandler {
         )
 
         nextLevelConfig.levelUpTriggers.forEach { triggerRef ->
-            triggerRef.triggerFor(player, context())
+            NumericalStorageCoroutines.onPlayerThread(player) {
+                triggerRef.triggerFor(player, context())
+            }
         }
     }
 
-    private fun executeTransaction(
+    private suspend fun executeTransaction(
         player: Player,
         definition: NumericalStorageDefinitionEntry,
         artifact: PlayerNumericalStorageArtifactEntry,
         type: TransactionType,
         amount: Double,
     ) {
-        if (amount <= 0) {
+        if (!amount.isFinite() || amount <= 0) {
             player.sendMiniWithResolvers(
                 definition.transaction.invalidAmountMessage,
                 Placeholder.parsed("prefix", definition.prefix)
@@ -293,8 +335,8 @@ class NumericalStorageTransactionHandler {
         }
 
         val decimalAmount = BigDecimal.valueOf(amount)
-        val balance = artifact.getBalance(player.uniqueId)
-        val level = artifact.getLevel(player.uniqueId)
+        val balance = artifact.getBalanceAsync(player.uniqueId, definition.profileMode)
+        val level = artifact.getLevelAsync(player.uniqueId, definition.profileMode)
         val levelConfig = definition.levels.getOrNull(level - 1)
         val limit = levelConfig?.let { BigDecimal.valueOf(it.limit) } ?: BigDecimal.valueOf(Double.MAX_VALUE)
         val txConfig = definition.transaction
@@ -304,14 +346,16 @@ class NumericalStorageTransactionHandler {
         if (type == TransactionType.DEPOSIT) {
             // --- Source funds check ---
             if (isVault) {
-                if (!VaultEconomyProvider.isAvailable) {
+                if (NumericalStorageCoroutines.onPlayerThread(player) { VaultEconomyProvider.isAvailable } != true) {
                     player.sendMiniWithResolvers(
                         txConfig.vaultUnavailableMessage,
                         Placeholder.parsed("prefix", definition.prefix)
                     )
                     return
                 }
-                val sourceBalance = VaultEconomyProvider.getBalance(player)
+                val sourceBalance = NumericalStorageCoroutines.onPlayerThread(player) {
+                    VaultEconomyProvider.getBalance(player)
+                } ?: 0.0
                 if (sourceBalance < amount) {
                     player.sendMiniWithResolvers(
                         txConfig.vaultInsufficientMessage,
@@ -349,8 +393,10 @@ class NumericalStorageTransactionHandler {
 
             // --- Deduct from source ---
             if (isVault) {
-                if (!VaultEconomyProvider.isAvailable) return
-                if (!VaultEconomyProvider.withdrawPlayer(player, amount)) {
+                val withdrawn = NumericalStorageCoroutines.onPlayerThread(player) {
+                    VaultEconomyProvider.isAvailable && VaultEconomyProvider.withdrawPlayer(player, amount)
+                } == true
+                if (!withdrawn) {
                     player.sendMiniWithResolvers(
                         txConfig.vaultInsufficientMessage,
                         Placeholder.parsed("amount", decimalAmount.toPlainString()),
@@ -358,23 +404,51 @@ class NumericalStorageTransactionHandler {
                     )
                     return
                 }
-            }
-
-            // --- Add to storage ---
-            artifact.addBalance(player.uniqueId, decimalAmount)
-
-            // --- Post-command (INTERNAL only) ---
-            if (!isVault && txConfig.addCommand.isNotBlank()) {
+            } else if (txConfig.addCommand.isNotBlank()) {
                 val cmd = txConfig.addCommand
                     .replace("{amount}", decimalAmount.toPlainString())
                     .replace("{player}", player.name)
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+                val commandSucceeded = NumericalStorageCoroutines.onGlobalThread {
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+                } == true
+                if (!commandSucceeded) {
+                    player.sendMiniWithResolvers(
+                        txConfig.addErrorMessage,
+                        Placeholder.parsed("amount", decimalAmount.toPlainString()),
+                        Placeholder.parsed("balance", balance.toPlainString()),
+                        Placeholder.parsed("limit", limit.toPlainString()),
+                        Placeholder.parsed("prefix", definition.prefix)
+                    )
+                    return
+                }
+            }
+
+            // --- Add to storage ---
+            val newSnapshot = try {
+                artifact.addBalance(player.uniqueId, decimalAmount, definition.profileMode)
+            } catch (error: Throwable) {
+                // Vault has already been debited; compensate immediately if the
+                // persistent artifact cannot be written.
+                if (isVault) {
+                    NumericalStorageCoroutines.onPlayerThread(player) {
+                        VaultEconomyProvider.depositPlayer(player, amount)
+                    }
+                }
+                Bukkit.getLogger().log(Level.SEVERE, "NumericalStorage deposit failed for ${player.name}", error)
+                player.sendMiniWithResolvers(
+                    txConfig.addErrorMessage,
+                    Placeholder.parsed("amount", decimalAmount.toPlainString()),
+                    Placeholder.parsed("balance", balance.toPlainString()),
+                    Placeholder.parsed("limit", limit.toPlainString()),
+                    Placeholder.parsed("prefix", definition.prefix)
+                )
+                return
             }
 
             player.sendMiniWithResolvers(
                 txConfig.addSuccessMessage,
                 Placeholder.parsed("amount", decimalAmount.toPlainString()),
-                Placeholder.parsed("new_balance", artifact.getBalance(player.uniqueId).toPlainString()),
+                Placeholder.parsed("new_balance", newSnapshot.balance(artifact.storageKey(player.uniqueId, definition.profileMode)).toPlainString()),
                 Placeholder.parsed("limit", limit.toPlainString()),
                 Placeholder.parsed("prefix", definition.prefix)
             )
@@ -391,41 +465,83 @@ class NumericalStorageTransactionHandler {
                 return
             }
 
-            // --- Remove from storage ---
-            artifact.removeBalance(player.uniqueId, decimalAmount)
-
-            // --- Add to source ---
+            // --- Add to source / execute external command first ---
             if (isVault) {
-                if (VaultEconomyProvider.isAvailable) {
-                    VaultEconomyProvider.depositPlayer(player, amount)
+                val deposited = NumericalStorageCoroutines.onPlayerThread(player) {
+                    VaultEconomyProvider.isAvailable && VaultEconomyProvider.depositPlayer(player, amount)
+                } == true
+                if (!deposited) {
+                    player.sendMiniWithResolvers(
+                        txConfig.vaultUnavailableMessage,
+                        Placeholder.parsed("amount", decimalAmount.toPlainString()),
+                        Placeholder.parsed("prefix", definition.prefix)
+                    )
+                    return
                 }
             } else if (txConfig.removeCommand.isNotBlank()) {
                 val cmd = txConfig.removeCommand
                     .replace("{amount}", decimalAmount.toPlainString())
                     .replace("{player}", player.name)
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+                val commandSucceeded = NumericalStorageCoroutines.onGlobalThread {
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd)
+                } == true
+                if (!commandSucceeded) {
+                    player.sendMiniWithResolvers(
+                        txConfig.removeErrorMessage,
+                        Placeholder.parsed("amount", decimalAmount.toPlainString()),
+                        Placeholder.parsed("balance", balance.toPlainString()),
+                        Placeholder.parsed("limit", limit.toPlainString()),
+                        Placeholder.parsed("prefix", definition.prefix)
+                    )
+                    return
+                }
+            }
+
+            // --- Remove from storage ---
+            val newSnapshot = try {
+                artifact.removeBalance(player.uniqueId, decimalAmount, definition.profileMode)
+            } catch (error: Throwable) {
+                // Vault credit succeeded; roll it back if the storage write
+                // fails. Arbitrary commands cannot be generically reversed,
+                // so they are executed only after a successful preflight.
+                if (isVault) {
+                    NumericalStorageCoroutines.onPlayerThread(player) {
+                        VaultEconomyProvider.withdrawPlayer(player, amount)
+                    }
+                }
+                Bukkit.getLogger().log(Level.SEVERE, "NumericalStorage withdrawal failed for ${player.name}", error)
+                player.sendMiniWithResolvers(
+                    txConfig.removeErrorMessage,
+                    Placeholder.parsed("amount", decimalAmount.toPlainString()),
+                    Placeholder.parsed("balance", balance.toPlainString()),
+                    Placeholder.parsed("limit", limit.toPlainString()),
+                    Placeholder.parsed("prefix", definition.prefix)
+                )
+                return
             }
 
             player.sendMiniWithResolvers(
                 txConfig.removeSuccessMessage,
                 Placeholder.parsed("amount", decimalAmount.toPlainString()),
-                Placeholder.parsed("new_balance", artifact.getBalance(player.uniqueId).toPlainString()),
+                Placeholder.parsed("new_balance", newSnapshot.balance(artifact.storageKey(player.uniqueId, definition.profileMode)).toPlainString()),
                 Placeholder.parsed("limit", limit.toPlainString()),
                 Placeholder.parsed("prefix", definition.prefix)
             )
         }
     }
 
-    private fun getSourceAmount(player: Player, definition: NumericalStorageDefinitionEntry): Double {
+    private suspend fun getSourceAmount(player: Player, definition: NumericalStorageDefinitionEntry): Double {
         val txConfig = definition.transaction
         return when (txConfig.transactionMode) {
             TransactionMode.VAULT -> {
-                VaultEconomyProvider.getBalance(player)
+                NumericalStorageCoroutines.onPlayerThread(player) { VaultEconomyProvider.getBalance(player) } ?: 0.0
             }
             TransactionMode.INTERNAL -> {
                 val placeholder = txConfig.amountPlaceholder
                 if (placeholder.isBlank()) return 0.0
-                placeholder.parsePlaceholders(player).toDoubleOrNull() ?: 0.0
+                NumericalStorageCoroutines.onPlayerThread(player) {
+                    placeholder.parsePlaceholders(player).toDoubleOrNull() ?: 0.0
+                } ?: 0.0
             }
         }
     }
@@ -442,14 +558,14 @@ class NumericalStorageTransactionHandler {
      * Atomically transfers [amount] from the source [artifact] to the target definition's artifact.
      * Validates source balance and target capacity before executing either side.
      */
-    private fun handleTransfer(
+    private suspend fun handleTransfer(
         player: Player,
         sourceDef: NumericalStorageDefinitionEntry,
         sourceArtifact: PlayerNumericalStorageArtifactEntry,
         targetId: String,
         amount: Double,
     ) {
-        if (amount <= 0) {
+        if (!amount.isFinite() || amount <= 0) {
             player.sendMiniWithResolvers(
                 sourceDef.transaction.invalidAmountMessage,
                 Placeholder.parsed("prefix", sourceDef.prefix)
@@ -475,7 +591,7 @@ class NumericalStorageTransactionHandler {
         }
 
         val decimalAmount = java.math.BigDecimal.valueOf(amount)
-        val sourceBalance = sourceArtifact.getBalance(player.uniqueId)
+        val sourceBalance = sourceArtifact.getBalanceAsync(player.uniqueId, sourceDef.profileMode)
 
         // Validate source has enough
         if (sourceBalance < decimalAmount) {
@@ -489,11 +605,11 @@ class NumericalStorageTransactionHandler {
         }
 
         // Validate target has capacity
-        val targetLevel = targetArtifact.getLevel(player.uniqueId)
+        val targetLevel = targetArtifact.getLevelAsync(player.uniqueId, targetDef.profileMode)
         val targetLevelConfig = targetDef.levels.getOrNull(targetLevel - 1)
         val targetLimit = targetLevelConfig?.let { java.math.BigDecimal.valueOf(it.limit) }
             ?: java.math.BigDecimal.valueOf(Double.MAX_VALUE)
-        val targetBalance = targetArtifact.getBalance(player.uniqueId)
+        val targetBalance = targetArtifact.getBalanceAsync(player.uniqueId, targetDef.profileMode)
         val targetNewBalance = targetBalance.add(decimalAmount)
         if (targetNewBalance > targetLimit) {
             player.sendMiniWithResolvers(
@@ -506,14 +622,21 @@ class NumericalStorageTransactionHandler {
         }
 
         // Atomic: both operations
-        sourceArtifact.removeBalance(player.uniqueId, decimalAmount)
-        targetArtifact.addBalance(player.uniqueId, decimalAmount)
+        val transfer = sourceArtifact.transferTo(
+            targetArtifact,
+            player.uniqueId,
+            decimalAmount,
+            sourceDef.profileMode,
+            targetDef.profileMode,
+        )
+        if (transfer.isFailure) return
+        val balances = transfer.getOrThrow()
 
         player.sendMiniWithResolvers(
             sourceDef.menu.transferSuccessMessage,
             Placeholder.parsed("amount", decimalAmount.toPlainString()),
-            Placeholder.parsed("new_balance", sourceArtifact.getBalance(player.uniqueId).toPlainString()),
-            Placeholder.parsed("target_balance", targetArtifact.getBalance(player.uniqueId).toPlainString()),
+            Placeholder.parsed("new_balance", balances.first.toPlainString()),
+            Placeholder.parsed("target_balance", balances.second.toPlainString()),
             Placeholder.parsed("prefix", sourceDef.prefix)
         )
     }
@@ -522,7 +645,20 @@ class NumericalStorageTransactionHandler {
      * Opens a sub-menu with the given [subMenuId] and [transactionType] (DEPOSIT or WITHDRAW).
      * The sub-menu provides a list of transaction buttons configured in the definition.
      */
-    private fun handleSubMenuAction(
+    private suspend fun handleSubMenuAction(
+        player: Player,
+        definition: NumericalStorageDefinitionEntry,
+        artifact: PlayerNumericalStorageArtifactEntry,
+        transactionType: TransactionType,
+        subMenuId: String,
+    ) {
+        if (definition.menu.subMenus[subMenuId] == null) return
+        NumericalStorageCoroutines.onPlayerThread(player) {
+            handleSubMenuActionOnPlayerThread(player, definition, artifact, transactionType, subMenuId)
+        }
+    }
+
+    private fun handleSubMenuActionOnPlayerThread(
         player: Player,
         definition: NumericalStorageDefinitionEntry,
         artifact: PlayerNumericalStorageArtifactEntry,
@@ -676,13 +812,15 @@ class NumericalStorageTransactionHandler {
         MenuSessionService.register(player, menuDef)
     }
 
-    private fun reopenMenu(player: Player, definition: NumericalStorageDefinitionEntry) {
+    private suspend fun reopenMenu(player: Player, definition: NumericalStorageDefinitionEntry) {
         // Re-trigger the open menu entry to refresh the GUI
         val menuEntries = Query.find<NumericalStorageOpenMenuEntry>()
         for (me in menuEntries) {
             val meDef = me.definition.get()
             if (meDef != null && meDef.id == definition.id) {
-                me.ref().triggerFor(player, context())
+                NumericalStorageCoroutines.onPlayerThread(player) {
+                    me.ref().triggerFor(player, context())
+                }
                 return
             }
         }

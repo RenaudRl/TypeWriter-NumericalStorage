@@ -21,9 +21,7 @@ import com.typewritermc.engine.paper.entry.TriggerableEntry
 import com.typewritermc.engine.paper.entry.entries.ActionEntry
 import com.typewritermc.engine.paper.entry.entries.ActionTrigger
 import com.typewritermc.engine.paper.extensions.placeholderapi.parsePlaceholders
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import btcrenaud.numericalstorage.NumericalStorageCoroutines
 import net.kyori.adventure.text.minimessage.MiniMessage
 
 @Entry(
@@ -54,7 +52,9 @@ class NumericalStorageOpenMenuEntry(
         val def = definition.get() ?: return
         val mm = MiniMessage.miniMessage()
 
-        CoroutineScope(Dispatchers.Default).launch {
+        NumericalStorageCoroutines.launch {
+            def.artifact.get()?.preload()
+            NumericalStorageCoroutines.onPlayerThread(player) {
             val ctx = context {}
             val rawTitle = def.menu.title.parsePlaceholders(player)
             val componentTitle = try {
@@ -88,6 +88,7 @@ class NumericalStorageOpenMenuEntry(
             )
 
             MenuSessionService.register(player, menuDef)
+            }
         }
     }
 }

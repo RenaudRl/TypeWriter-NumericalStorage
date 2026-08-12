@@ -12,6 +12,7 @@ import btcrenaud.numericalstorage.NumericalStorageDefinitionEntry
 import btcrenaud.numericalstorage.PlayerNumericalStorageArtifactEntry
 import btcrenaud.numericalstorage.TransactionType
 import btcrenaud.numericalstorage.buildItem
+import btcrenaud.numericalstorage.toFinitePositiveDoubleOrNull
 import com.typewritermc.engine.paper.extensions.placeholderapi.parsePlaceholders
 import com.typewritermc.engine.paper.utils.asMini
 import net.kyori.adventure.text.Component
@@ -96,7 +97,7 @@ class NumericalStorageButtonResolverLayout(
     }
 
     private fun resolveDepositFixedButton(p: Player, slot: GuiSlot, amountStr: String?): GuiSlot {
-        val targetAmount = amountStr?.toDoubleOrNull()
+        val targetAmount = amountStr?.toFinitePositiveDoubleOrNull()
         val btn = if (targetAmount != null) {
             definition.menu.transactionButtons.firstOrNull {
                 it.type == TransactionType.DEPOSIT && it.amountType == AmountType.FIXED && it.amount == targetAmount
@@ -120,7 +121,7 @@ class NumericalStorageButtonResolverLayout(
     }
 
     private fun resolveDepositPercentButton(p: Player, slot: GuiSlot, amountStr: String?): GuiSlot {
-        val targetAmount = amountStr?.toDoubleOrNull()
+        val targetAmount = amountStr?.toFinitePositiveDoubleOrNull()
         val btn = if (targetAmount != null) {
             definition.menu.transactionButtons.firstOrNull {
                 it.type == TransactionType.DEPOSIT && it.amountType == AmountType.PERCENTAGE && it.amount == targetAmount
@@ -160,7 +161,7 @@ class NumericalStorageButtonResolverLayout(
     }
 
     private fun resolveWithdrawFixedButton(p: Player, slot: GuiSlot, amountStr: String?): GuiSlot {
-        val targetAmount = amountStr?.toDoubleOrNull()
+        val targetAmount = amountStr?.toFinitePositiveDoubleOrNull()
         val btn = if (targetAmount != null) {
             definition.menu.transactionButtons.firstOrNull {
                 it.type == TransactionType.WITHDRAW && it.amountType == AmountType.FIXED && it.amount == targetAmount
@@ -184,7 +185,7 @@ class NumericalStorageButtonResolverLayout(
     }
 
     private fun resolveWithdrawPercentButton(p: Player, slot: GuiSlot, amountStr: String?): GuiSlot {
-        val targetAmount = amountStr?.toDoubleOrNull()
+        val targetAmount = amountStr?.toFinitePositiveDoubleOrNull()
         val btn = if (targetAmount != null) {
             definition.menu.transactionButtons.firstOrNull {
                 it.type == TransactionType.WITHDRAW && it.amountType == AmountType.PERCENTAGE && it.amount == targetAmount
@@ -299,7 +300,7 @@ class NumericalStorageButtonResolverLayout(
     }
 
     private fun resolveTransferFixedButton(p: Player, slot: GuiSlot, amountStr: String?): GuiSlot {
-        val targetAmount = amountStr?.toDoubleOrNull()
+        val targetAmount = amountStr?.toFinitePositiveDoubleOrNull()
         val btn = if (targetAmount != null) {
             definition.menu.transactionButtons.firstOrNull {
                 it.type == TransactionType.TRANSFER && it.amountType == AmountType.FIXED && it.amount == targetAmount
@@ -324,7 +325,7 @@ class NumericalStorageButtonResolverLayout(
     }
 
     private fun resolveTransferPercentButton(p: Player, slot: GuiSlot, amountStr: String?): GuiSlot {
-        val targetPercent = amountStr?.toDoubleOrNull()
+        val targetPercent = amountStr?.toFinitePositiveDoubleOrNull()
         val btn = if (targetPercent != null) {
             definition.menu.transactionButtons.firstOrNull {
                 it.type == TransactionType.TRANSFER && it.amountType == AmountType.PERCENTAGE && it.amount == targetPercent

@@ -8,3 +8,6 @@ pluginManagement {
 
 rootProject.name = "NumericalStorageExtension"
 
+include("Typewriter-OmniGUIExtension")
+project(":Typewriter-OmniGUIExtension").projectDir = file("../Typewriter-OmniGUIExtension")
+
