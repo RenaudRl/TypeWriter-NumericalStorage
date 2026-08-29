@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11 - 2026-08-29
+
+- Rebuilt against OmniGUI (GuiAndDialogs) v0.14.
+
 ## 0.9 — 2026-08-12
 
 - **`transactionMode`** on the transaction config: `INTERNAL` keeps the PlaceholderAPI plus
