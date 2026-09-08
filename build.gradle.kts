@@ -20,7 +20,7 @@ dependencies {
 }
 
 group = "btc.renaud"
-version = "0.12"
+version = "0.13"
 
 base {
     archivesName.set("NumericalStorageExtension")
@@ -32,7 +32,7 @@ typewriter {
         name = "NumericalStorage"
         shortDescription = "Create a Bank System in TypeWriter"
         description = "A comprehensive TypeWriter extension providing advanced gameplay features for Minecraft servers on Paper 1.21+. Fully compatible with the official TypeWriter engine and PlaceholderAPI."
-        engineVersion = "0.9.0-beta-176"
+        engineVersion = "0.9.0-beta-177"
         channel = com.typewritermc.moduleplugin.ReleaseChannel.BETA
         
         dependencies {

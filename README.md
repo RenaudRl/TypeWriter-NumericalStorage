@@ -1,6 +1,6 @@
 # NumericalStorage — extension publique TypeWriter
 
-Version officielle pour Paper/Folia et le moteur TypeWriter public. Elle cible Java 21 afin de rester compatible avec l’écosystème officiel TypeWriter `0.9.0-beta-175`.
+Version officielle pour Paper/Folia et le moteur TypeWriter public. Elle cible Java 21 afin de rester compatible avec l’écosystème officiel TypeWriter `0.9.0-beta-177`.
 
 ## Fonctionnalités
 
