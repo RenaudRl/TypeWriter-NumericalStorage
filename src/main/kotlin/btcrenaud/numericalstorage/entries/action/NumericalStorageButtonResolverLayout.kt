@@ -13,6 +13,7 @@ import btcrenaud.numericalstorage.PlayerNumericalStorageArtifactEntry
 import btcrenaud.numericalstorage.TransactionType
 import btcrenaud.numericalstorage.buildItem
 import btcrenaud.numericalstorage.renderOptionalButtons
+import btcrenaud.numericalstorage.withOptionalButtons
 import btcrenaud.numericalstorage.toFinitePositiveDoubleOrNull
 import com.typewritermc.engine.paper.extensions.placeholderapi.parsePlaceholders
 import com.typewritermc.engine.paper.utils.asMini
@@ -54,13 +55,9 @@ class NumericalStorageButtonResolverLayout(
         session: MenuSessionService.ActiveSession,
         viewport: Viewport,
     ): List<GuiSlot> {
-        val layoutSlots = delegate.getSlots(session, viewport)
-        val optionalSlots = renderOptionalButtons(session.player, definition.menu.optionalButtons, definition.menu.rows)
-        if (optionalSlots.isEmpty()) return layoutSlots
-
         // A display-only button placed by slot wins over whatever the layout pool put at the same spot.
-        val occupied = optionalSlots.mapTo(HashSet()) { it.x to it.y }
-        return layoutSlots.filterNot { (it.x to it.y) in occupied } + optionalSlots
+        val optionalSlots = renderOptionalButtons(session.player, definition.menu.optionalButtons, definition.menu.rows)
+        return withOptionalButtons(delegate.getSlots(session, viewport), optionalSlots)
     }
 
     override val virtualWidth: Int

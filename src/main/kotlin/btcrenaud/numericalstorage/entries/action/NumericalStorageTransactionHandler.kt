@@ -21,6 +21,7 @@ import btcrenaud.numericalstorage.NumericalStorageCoroutines
 import btcrenaud.numericalstorage.toFinitePositiveDoubleOrNull
 import btcrenaud.numericalstorage.buildItem
 import btcrenaud.numericalstorage.renderOptionalButtons
+import btcrenaud.numericalstorage.withOptionalButtons
 import com.typewritermc.core.entries.Query
 import com.typewritermc.core.entries.ref
 import com.typewritermc.core.extension.annotations.Singleton
@@ -773,8 +774,6 @@ class NumericalStorageTransactionHandler {
             )
         }
 
-        slots.addAll(renderOptionalButtons(player, subMenu.optionalButtons, rows))
-
         // Close button
         val closeBtn = subMenu.closeButton
         for (closeSlot in closeBtn.slots) {
@@ -792,6 +791,11 @@ class NumericalStorageTransactionHandler {
                 )
             )
         }
+
+        // Display-only buttons replace whatever the other buttons put in the same slot.
+        val placedSlots = withOptionalButtons(slots, renderOptionalButtons(player, subMenu.optionalButtons, rows))
+        slots.clear()
+        slots.addAll(placedSlots)
 
         // Fill background
         if (definition.menu.fillEnabled) {
