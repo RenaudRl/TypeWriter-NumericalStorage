@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `menu.optionalButtons` and the `optionalButtons` of each sub-menu are now rendered: display-only
+  items drawn at their `slots` (a click does nothing). In the main menu they replace whatever the
+  layout pool puts in the same slot. Slots outside the menu size are ignored.
+
 ## 0.11 - 2026-08-29
 
 - Rebuilt against OmniGUI (GuiAndDialogs) v0.14.

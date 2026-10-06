@@ -43,7 +43,7 @@ data class NumericalStorageMenuConfig(
     val fill: ItemTemplate = ItemTemplate(item = ItemStack(Material.GRAY_STAINED_GLASS_PANE).toItem()),
     @Help("List of transaction buttons (add/remove).")
     val transactionButtons: List<TransactionButtonConfig> = emptyList(),
-    @Help("List of optional buttons (display only).")
+    @Help("Display-only items drawn at fixed slots (a click does nothing). They replace whatever the layout puts in the same slot.")
     val optionalButtons: List<OptionalButtonConfig> = emptyList(),
     @Help("Configuration for the custom amount dialog.")
     val customAmountDialog: DialogConfig = DialogConfig(),
@@ -130,7 +130,7 @@ enum class AmountType {
 data class OptionalButtonConfig(
     @Help("Item to display.")
     val template: ItemTemplate = ItemTemplate(name = "Info"),
-    @Help("Slot in the inventory.")
+    @Help("Inventory slots (0 = top left, 9 per row). Slots outside the menu size are ignored.")
     val slots: List<Int> = listOf(0)
 )
 
