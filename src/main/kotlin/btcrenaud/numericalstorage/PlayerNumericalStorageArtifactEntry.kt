@@ -95,7 +95,7 @@ class PlayerNumericalStorageArtifactEntry(
     }
 
     fun storageKey(uuid: UUID, profileMode: Boolean = false): String =
-        if (profileMode) resolveProfileKey(uuid) else uuid.toString()
+        if (profileMode) ProfileKeyResolver.keyOf(uuid) else uuid.toString()
 
     /* Cache-only API used by placeholder and GUI render paths. */
     fun getBalance(uuid: UUID, profileMode: Boolean = false): BigDecimal =
@@ -253,14 +253,6 @@ class PlayerNumericalStorageArtifactEntry(
             NumericalStorageSnapshot(balances, levels, interestTimes)
         }.getOrDefault(NumericalStorageSnapshot())
     }
-
-    private fun resolveProfileKey(uuid: UUID): String = runCatching {
-        val api = Class.forName("btc.renaud.profiles.api.ProfilesAPI")
-        val enabled = api.getMethod("isEnabled").invoke(null) as? Boolean ?: false
-        if (!enabled) return@runCatching uuid.toString()
-        api.getMethod("getProfileStorageKeyByUuid", UUID::class.java, String::class.java)
-            .invoke(null, uuid, uuid.toString()) as? String ?: uuid.toString()
-    }.getOrDefault(uuid.toString())
 
     private fun String.isUuid(): Boolean = runCatching { UUID.fromString(this); true }.getOrDefault(false)
     private fun BigDecimal.nonNegative(): BigDecimal = max(BigDecimal.ZERO)
