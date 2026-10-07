@@ -9,9 +9,9 @@ import btcrenaud.gui.api.Viewport
 import btcrenaud.gui.services.MenuSessionService
 import btcrenaud.numericalstorage.AmountType
 import btcrenaud.numericalstorage.NumericalStorageDefinitionEntry
-import btcrenaud.numericalstorage.PlayerNumericalStorageArtifactEntry
 import btcrenaud.numericalstorage.TransactionType
 import btcrenaud.numericalstorage.buildItem
+import btcrenaud.numericalstorage.reads
 import btcrenaud.numericalstorage.renderOptionalButtons
 import btcrenaud.numericalstorage.withOptionalButtons
 import btcrenaud.numericalstorage.toFinitePositiveDoubleOrNull
@@ -38,8 +38,6 @@ class NumericalStorageButtonResolverLayout(
     inner: MenuLayout,
     override val id: String? = null,
 ) : MenuLayout {
-
-    private val artifact = definition.artifact.get()
 
     private val delegate = GenericButtonResolverLayout(
         inner = inner,
@@ -372,9 +370,9 @@ class NumericalStorageButtonResolverLayout(
     }
 
     private fun resolveUpgradeLevelButton(p: Player, slot: GuiSlot): GuiSlot {
-        if (artifact == null) return slot
+        val reads = definition.reads() ?: return slot
 
-        val level = artifact.getLevel(p.uniqueId)
+        val level = reads.level(p.uniqueId)
         val maxLevel = definition.levels.size
         val btnConfig = definition.menu.levelButton
 

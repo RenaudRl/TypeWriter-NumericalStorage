@@ -34,21 +34,16 @@ class NumericalStoragePlaceholders : PlaceholderHandler {
         if (type.isBlank() || defId.isBlank()) return null
         
         val definition = Query.findById<NumericalStorageDefinitionEntry>(defId) ?: return null
-        val artifact = definition.artifact.get()
-        
+        // Reads the storage the definition itself uses: in profile mode, the profile the player is playing.
+        val reads = definition.reads()
+        // Without an artifact, a player counts as being at the first configured level.
+        fun bankLevel() = reads?.bankLevel(player.uniqueId) ?: definition.levels.firstOrNull()
+
         return when (type.lowercase()) {
-            "balance" -> artifact?.getBalance(player.uniqueId)?.toPlainString()
-            "level" -> artifact?.getLevel(player.uniqueId)?.toString()
-            "capacity" -> {
-                val level = artifact?.getLevel(player.uniqueId) ?: 1
-                val bankLevel = definition.levels.getOrNull(level - 1)
-                bankLevel?.limit?.let { java.math.BigDecimal.valueOf(it).toPlainString() } ?: unlimitedCapacityText
-            }
-            "interest" -> {
-                val level = artifact?.getLevel(player.uniqueId) ?: 1
-                val bankLevel = definition.levels.getOrNull(level - 1)
-                NumericalStorageInterestService.getApplicableInterestRate(player, definition, bankLevel).toString()
-            }
+            "balance" -> reads?.balance(player.uniqueId)?.toPlainString()
+            "level" -> reads?.level(player.uniqueId)?.toString()
+            "capacity" -> bankLevel()?.limit?.let { java.math.BigDecimal.valueOf(it).toPlainString() } ?: unlimitedCapacityText
+            "interest" -> NumericalStorageInterestService.getApplicableInterestRate(player, definition, bankLevel()).toString()
             "interest_cooldown" -> {
                 if (!definition.interestEnabled) {
                     interestDisabledText

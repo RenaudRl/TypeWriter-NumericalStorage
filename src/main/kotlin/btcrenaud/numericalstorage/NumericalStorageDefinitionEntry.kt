@@ -73,7 +73,15 @@ data class AdminCommandMessages(
     @Help("Reply to /typewriter ns open when no Open Numerical Storage Menu entry is linked to the definition. Placeholders: <storage>, <prefix>")
     @Colored
     @Placeholder
-    val noMenuMessage: String = "<red><bold>Typewriter »<reset> <red>No menu entry found for storage '<storage>'. Create a 'numericalstorage_open_menu' entry in a Typewriter page."
+    val noMenuMessage: String = "<red><bold>Typewriter »<reset> <red>No menu entry found for storage '<storage>'. Create a 'numericalstorage_open_menu' entry in a Typewriter page.",
+    @Help("Reply to /typewriter ns add and remove when the amount is not a positive number. Placeholders: <amount> (the value typed), <player>, <storage>, <prefix>")
+    @Colored
+    @Placeholder
+    val invalidAmountMessage: String = "<red><bold>Typewriter »<reset> <red>Invalid amount '<amount>'. Use a positive number.",
+    @Help("Reply to /typewriter ns add, remove, level and reset when no artifact is linked to the definition. Placeholders: <player>, <storage>, <prefix>")
+    @Colored
+    @Placeholder
+    val noArtifactMessage: String = "<red><bold>Typewriter »<reset> <red>Storage '<storage>' has no artifact linked. Link a 'player_numericalstorage_artifact' entry to it."
 )
 
 data class InterestRatePermission(
