@@ -9,7 +9,6 @@ import com.typewritermc.engine.paper.command.dsl.entry
 import com.typewritermc.engine.paper.command.dsl.executePlayerOrTarget
 import com.typewritermc.engine.paper.command.dsl.sender
 import com.typewritermc.engine.paper.command.dsl.withPermission
-import com.typewritermc.engine.paper.utils.msg
 import com.typewritermc.engine.paper.utils.sendMiniWithResolvers
 import com.typewritermc.engine.paper.entry.triggerFor
 import com.typewritermc.engine.paper.entry.entries.get
@@ -17,6 +16,9 @@ import com.typewritermc.core.interaction.context
 import btcrenaud.numericalstorage.entries.action.NumericalStorageOpenMenuEntry
 import com.typewritermc.core.entries.ref
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.unparsed
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
+import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import java.math.BigDecimal
 
@@ -35,7 +37,7 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                         balances[key] = BigDecimal.ZERO
                     }
                     NumericalStorageCoroutines.onPlayerThread(target) {
-                        sender.msg("Numerical storage reset for ${target.name}.")
+                        sender.reply(definition, definition.adminMessages.resetMessage, unparsed("player", target.name))
                     }
                 }
             }
@@ -57,7 +59,12 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                             balances[key] = BigDecimal.ZERO
                         }
                         NumericalStorageCoroutines.onPlayerThread(target) {
-                            sender.msg("Set numerical storage level to $levelVal for ${target.name}.")
+                            sender.reply(
+                                definition,
+                                definition.adminMessages.levelSetMessage,
+                                unparsed("player", target.name),
+                                unparsed("level", levelVal.toString()),
+                            )
                             definition.levels.getOrNull(levelVal - 1)?.let { level ->
                                 target.sendLevelUp(definition, level, levelVal)
                             }
@@ -79,7 +86,12 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                     NumericalStorageCoroutines.launch {
                         art.addBalance(target.uniqueId, amount, definition.profileMode)
                         NumericalStorageCoroutines.onPlayerThread(target) {
-                            sender.msg("Added $amount to ${target.name}.")
+                            sender.reply(
+                                definition,
+                                definition.adminMessages.addMessage,
+                                unparsed("player", target.name),
+                                unparsed("amount", amount.toPlainString()),
+                            )
                         }
                     }
                 }
@@ -98,7 +110,12 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                     NumericalStorageCoroutines.launch {
                         art.removeBalance(target.uniqueId, amount, definition.profileMode)
                         NumericalStorageCoroutines.onPlayerThread(target) {
-                            sender.msg("Removed $amount from ${target.name}.")
+                            sender.reply(
+                                definition,
+                                definition.adminMessages.removeMessage,
+                                unparsed("player", target.name),
+                                unparsed("amount", amount.toPlainString()),
+                            )
                         }
                     }
                 }
@@ -124,12 +141,23 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                 if (menuEntry != null) {
                     menuEntry.ref().triggerFor(target, context())
                 } else {
-                    sender.msg("<red>No menu entry found for storage '${definition.id}'. Create a 'numericalstorage_open_menu' entry in a Typewriter page.")
+                    sender.reply(definition, definition.adminMessages.noMenuMessage)
                 }
             }
         }
     }
 }
+
+private fun CommandSender.reply(
+    definition: NumericalStorageDefinitionEntry,
+    message: String,
+    vararg resolvers: TagResolver,
+) = sendMiniWithResolvers(
+    message,
+    parsed("prefix", definition.prefix),
+    unparsed("storage", definition.id),
+    *resolvers,
+)
 
 private fun Player.sendLevelUp(
     definition: NumericalStorageDefinitionEntry,

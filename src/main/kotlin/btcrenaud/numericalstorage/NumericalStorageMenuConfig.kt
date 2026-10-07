@@ -83,6 +83,10 @@ data class NumericalStorageMenuConfig(
     val transferCapacityMessage: String = "<red>Target storage has insufficient capacity.",
     @Help("Message when transfer succeeds. Placeholders: <amount>, <new_balance>, <target_balance>, <prefix>")
     val transferSuccessMessage: String = "<aqua>Transferred <amount>! New source balance: <new_balance>, target: <target_balance>",
+    @Help("Message when the transfer target is not a known definition. Placeholders: <prefix>")
+    val transferTargetNotFoundMessage: String = "<red>Target storage not found.",
+    @Help("Message when the transfer target definition has no artifact. Placeholders: <prefix>")
+    val transferTargetUnavailableMessage: String = "<red>Target storage is not available.",
     @Help("Message when already at max level. Placeholders: <prefix>")
     val maxLevelMessage: String = "<red>Already at max level.",
     @Help("Message when criteria not met for upgrade. Placeholders: <prefix>")

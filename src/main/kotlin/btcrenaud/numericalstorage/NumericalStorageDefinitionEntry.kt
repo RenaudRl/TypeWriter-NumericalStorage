@@ -3,8 +3,10 @@ package btcrenaud.numericalstorage
 import com.typewritermc.core.books.pages.Colors
 import com.typewritermc.core.entries.Ref
 import com.typewritermc.core.entries.emptyRef
+import com.typewritermc.core.extension.annotations.Colored
 import com.typewritermc.core.extension.annotations.Entry
 import com.typewritermc.core.extension.annotations.Help
+import com.typewritermc.core.extension.annotations.Placeholder
 import com.typewritermc.core.extension.annotations.Tags
 import com.typewritermc.engine.paper.entry.ManifestEntry
 import com.typewritermc.engine.paper.utils.CronExpression
@@ -42,8 +44,37 @@ class NumericalStorageDefinitionEntry(
     @Help("Transaction configuration for deposits/withdrawals via menu and commands.")
     val transaction: TransactionConfig = TransactionConfig(),
     @Help("When enabled, balances are stored per-profile instead of globally: one balance per MMOProfiles profile. Without MMOProfiles, or before a profile is selected, the balance is the player's.")
-    val profileMode: Boolean = false
+    val profileMode: Boolean = false,
+    @Help("Replies shown to the sender of the /typewriter ns admin commands (add, remove, level, reset, open).")
+    val adminMessages: AdminCommandMessages = AdminCommandMessages()
 ) : ManifestEntry
+
+/**
+ * Replies of the `/typewriter ns` admin commands. They go to the sender (the console included), so they carry
+ * their own prefix: the defaults reproduce the engine's `Typewriter »` header, and an admin can restyle or drop it.
+ */
+data class AdminCommandMessages(
+    @Help("Reply to /typewriter ns reset. Placeholders: <player>, <storage>, <prefix>")
+    @Colored
+    @Placeholder
+    val resetMessage: String = "<red><bold>Typewriter »<reset><white> Numerical storage reset for <player>.",
+    @Help("Reply to /typewriter ns level. Placeholders: <player>, <level>, <storage>, <prefix>")
+    @Colored
+    @Placeholder
+    val levelSetMessage: String = "<red><bold>Typewriter »<reset><white> Set numerical storage level to <level> for <player>.",
+    @Help("Reply to /typewriter ns add. Placeholders: <player>, <amount>, <storage>, <prefix>")
+    @Colored
+    @Placeholder
+    val addMessage: String = "<red><bold>Typewriter »<reset><white> Added <amount> to <player>.",
+    @Help("Reply to /typewriter ns remove. Placeholders: <player>, <amount>, <storage>, <prefix>")
+    @Colored
+    @Placeholder
+    val removeMessage: String = "<red><bold>Typewriter »<reset><white> Removed <amount> from <player>.",
+    @Help("Reply to /typewriter ns open when no Open Numerical Storage Menu entry is linked to the definition. Placeholders: <storage>, <prefix>")
+    @Colored
+    @Placeholder
+    val noMenuMessage: String = "<red><bold>Typewriter »<reset> <red>No menu entry found for storage '<storage>'. Create a 'numericalstorage_open_menu' entry in a Typewriter page."
+)
 
 data class InterestRatePermission(
     @Help("Permission node required for this rate.")

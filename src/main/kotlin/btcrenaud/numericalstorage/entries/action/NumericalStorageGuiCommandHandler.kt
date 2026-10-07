@@ -4,6 +4,9 @@ import com.typewritermc.core.extension.annotations.TypewriterCommand
 import com.typewritermc.engine.paper.command.dsl.*
 import org.koin.java.KoinJavaComponent.get
 import btcrenaud.gui.services.MenuSessionService
+import btcrenaud.numericalstorage.playerOnlyMessage
+import com.typewritermc.engine.paper.utils.sendMini
+import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
 /**
@@ -18,10 +21,7 @@ fun CommandTree.numericalStorageGuiCommands() = literal("numstorage") {
         string("definitionId") { defIdArg ->
             string("action") { actionArg ->
                 executes {
-                    val player = sender as? org.bukkit.entity.Player ?: run {
-                        sender.sendMessage("<red>Only players can use this command.")
-                        return@executes
-                    }
+                    val player = sender.playerOrExplain() ?: return@executes
                     if (!MenuSessionService.hasActiveSession(player)) return@executes
                     val defId = defIdArg()
                     val action = actionArg()
@@ -35,10 +35,7 @@ fun CommandTree.numericalStorageGuiCommands() = literal("numstorage") {
     literal("upgrade") {
         string("definitionId") { defIdArg ->
             executes {
-                val player = sender as? org.bukkit.entity.Player ?: run {
-                    sender.sendMessage("<red>Only players can use this command.")
-                    return@executes
-                }
+                val player = sender.playerOrExplain() ?: return@executes
                 if (!MenuSessionService.hasActiveSession(player)) return@executes
                 val defId = defIdArg()
                 val handler = get<NumericalStorageTransactionHandler>(NumericalStorageTransactionHandler::class.java)
@@ -50,10 +47,7 @@ fun CommandTree.numericalStorageGuiCommands() = literal("numstorage") {
     literal("back_main") {
         string("definitionId") { defIdArg ->
             executes {
-                val player = sender as? org.bukkit.entity.Player ?: run {
-                    sender.sendMessage("<red>Only players can use this command.")
-                    return@executes
-                }
+                val player = sender.playerOrExplain() ?: return@executes
                 if (!MenuSessionService.hasActiveSession(player)) return@executes
                 val defId = defIdArg()
                 val handler = get<NumericalStorageTransactionHandler>(NumericalStorageTransactionHandler::class.java)
@@ -61,6 +55,13 @@ fun CommandTree.numericalStorageGuiCommands() = literal("numstorage") {
             }
         }
     }
+}
+
+/** The sender as a player; any other sender is told, with the configurable snippet, that the command is for players. */
+private fun CommandSender.playerOrExplain(): Player? {
+    if (this is Player) return this
+    sendMini(playerOnlyMessage)
+    return null
 }
 
 /**

@@ -578,7 +578,7 @@ class NumericalStorageTransactionHandler {
         val targetDef = findDefinitionById(targetId)
         if (targetDef == null) {
             player.sendMiniWithResolvers(
-                "<red>Target storage not found.",
+                sourceDef.menu.transferTargetNotFoundMessage,
                 Placeholder.parsed("prefix", sourceDef.prefix)
             )
             return
@@ -586,7 +586,7 @@ class NumericalStorageTransactionHandler {
         val targetArtifact = targetDef.artifact.get()
         if (targetArtifact == null) {
             player.sendMiniWithResolvers(
-                "<red>Target storage is not available.",
+                sourceDef.menu.transferTargetUnavailableMessage,
                 Placeholder.parsed("prefix", sourceDef.prefix)
             )
             return

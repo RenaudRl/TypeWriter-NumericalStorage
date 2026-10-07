@@ -42,7 +42,7 @@ class NumericalStoragePlaceholders : PlaceholderHandler {
             "capacity" -> {
                 val level = artifact?.getLevel(player.uniqueId) ?: 1
                 val bankLevel = definition.levels.getOrNull(level - 1)
-                bankLevel?.limit?.let { java.math.BigDecimal.valueOf(it).toPlainString() } ?: "∞"
+                bankLevel?.limit?.let { java.math.BigDecimal.valueOf(it).toPlainString() } ?: unlimitedCapacityText
             }
             "interest" -> {
                 val level = artifact?.getLevel(player.uniqueId) ?: 1
@@ -51,19 +51,19 @@ class NumericalStoragePlaceholders : PlaceholderHandler {
             }
             "interest_cooldown" -> {
                 if (!definition.interestEnabled) {
-                    "Disabled"
+                    interestDisabledText
                 } else {
                     val cron = definition.interestCron
                     if (cron.expression.isNotBlank()) {
                         try {
                             val nextTime = cron.nextTimeAfter(ZonedDateTime.now())
                             val duration = Duration.between(ZonedDateTime.now(), nextTime)
-                            duration.asReadable()
+                            duration.asReadable(durationFormat())
                         } catch (e: Exception) {
-                            "Error"
+                            interestErrorText
                         }
                     } else {
-                        "Disabled"
+                        interestDisabledText
                     }
                 }
             }
@@ -71,20 +71,5 @@ class NumericalStoragePlaceholders : PlaceholderHandler {
             "prefix" -> definition.prefix.parsePlaceholders(player)
             else -> null
         }
-    }
-
-
-    private fun java.time.Duration.asReadable(): String {
-        val days = toDays()
-        val hours = toHoursPart()
-        val minutes = toMinutesPart()
-        val seconds = toSecondsPart()
-        val result = buildString {
-            if (days > 0) append("${days}j ")
-            if (hours > 0) append("${hours}h ")
-            if (minutes > 0) append("${minutes}m ")
-            if (seconds > 0 || isEmpty()) append("${seconds}s")
-        }.trim()
-        return result.ifEmpty { "0s" }
     }
 }
