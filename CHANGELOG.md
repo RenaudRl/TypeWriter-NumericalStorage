@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.14 - 2026-10-08
 
 - `menu.optionalButtons` and the `optionalButtons` of each sub-menu are now rendered: display-only
   items drawn at their `slots` (a click does nothing). In the main menu they replace whatever the
