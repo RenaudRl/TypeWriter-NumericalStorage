@@ -28,7 +28,27 @@ data class NumericalStorageSnapshot(
     fun balance(key: String): BigDecimal = balances[key] ?: BigDecimal.ZERO
     fun level(key: String): Int = levels[key] ?: 1
     fun lastInterestTime(key: String): Long = interestTimes[key] ?: 0L
+
+    /** The balance under [key], or zero when there is no key: a player without an active profile owns nothing. */
+    fun balanceOf(key: String?): BigDecimal = key?.let(::balance) ?: BigDecimal.ZERO
+
+    /** The level under [key], or the first level when there is no key. */
+    fun levelOf(key: String?): Int = key?.let(::level) ?: 1
+
+    /** The last interest time under [key], or zero when there is no key. */
+    fun lastInterestTimeOf(key: String?): Long = key?.let(::lastInterestTime) ?: 0L
 }
+
+/** The key of [playerId]: the player's own, or in profile mode the one [profileKey] gives (`null` without a profile). */
+internal fun storageKeyFor(playerId: UUID, profileMode: Boolean, profileKey: (UUID) -> String?): String? =
+    if (profileMode) profileKey(playerId) else playerId.toString()
+
+/**
+ * A write was asked for a player in profile mode who has no active MMOProfiles profile. Nothing is written: the only
+ * key left would be the player's UUID, which is the id of their Main profile.
+ */
+class NoActiveProfileException(val playerId: UUID) :
+    IllegalStateException("Player $playerId has no active profile; the storage cannot be written")
 
 /**
  * Persistent player storage artifact.
@@ -102,29 +122,34 @@ class PlayerNumericalStorageArtifactEntry(
         persistLocked(NumericalStorageSnapshot(balances.toMap(), levels.toMap(), interestTimes.toMap()))
     }
 
+    /** The key [uuid] reads and writes under, or `null` in profile mode while the player has no active profile. */
+    fun storageKeyOrNull(uuid: UUID, profileMode: Boolean = false): String? =
+        storageKeyFor(uuid, profileMode, ProfileKeyResolver::keyOf)
+
+    /** The key [uuid] writes under; [NoActiveProfileException] when [storageKeyOrNull] has none. */
     fun storageKey(uuid: UUID, profileMode: Boolean = false): String =
-        if (profileMode) ProfileKeyResolver.keyOf(uuid) else uuid.toString()
+        storageKeyOrNull(uuid, profileMode) ?: throw NoActiveProfileException(uuid)
 
     /* Cache-only API used by placeholder and GUI render paths. */
     fun getBalance(uuid: UUID, profileMode: Boolean = false): BigDecimal =
-        cache.snapshot?.balance(storageKey(uuid, profileMode)) ?: BigDecimal.ZERO
+        cache.snapshot?.balanceOf(storageKeyOrNull(uuid, profileMode)) ?: BigDecimal.ZERO
 
     fun getBalances(): Map<String, BigDecimal> = cache.snapshot?.balances ?: emptyMap()
 
     fun getLevel(uuid: UUID, profileMode: Boolean = false): Int =
-        cache.snapshot?.level(storageKey(uuid, profileMode)) ?: 1
+        cache.snapshot?.levelOf(storageKeyOrNull(uuid, profileMode)) ?: 1
 
     fun getLevels(): Map<String, Int> = cache.snapshot?.levels ?: emptyMap()
 
     fun getLastInterestTime(uuid: UUID, profileMode: Boolean = false): Long =
-        cache.snapshot?.lastInterestTime(storageKey(uuid, profileMode)) ?: 0L
+        cache.snapshot?.lastInterestTimeOf(storageKeyOrNull(uuid, profileMode)) ?: 0L
 
     /* Async API used by commands, transactions and lifecycle work. */
     suspend fun getBalanceAsync(uuid: UUID, profileMode: Boolean = false): BigDecimal =
-        snapshot().balance(storageKey(uuid, profileMode))
+        snapshot().balanceOf(storageKeyOrNull(uuid, profileMode))
 
     suspend fun getLevelAsync(uuid: UUID, profileMode: Boolean = false): Int =
-        snapshot().level(storageKey(uuid, profileMode))
+        snapshot().levelOf(storageKeyOrNull(uuid, profileMode))
 
     suspend fun setBalance(uuid: UUID, amount: BigDecimal, profileMode: Boolean = false): NumericalStorageSnapshot =
         update { balances, _, _ -> balances[storageKey(uuid, profileMode)] = amount.nonNegative() }
@@ -173,8 +198,10 @@ class PlayerNumericalStorageArtifactEntry(
             second.mutex.withLock {
                 val source = loadLocked()
                 val destination = target.loadLocked()
-                val sourceKey = storageKey(uuid, sourceProfileMode)
-                val targetKey = target.storageKey(uuid, targetProfileMode)
+                val sourceKey = storageKeyOrNull(uuid, sourceProfileMode)
+                    ?: return@withLock Result.failure(NoActiveProfileException(uuid))
+                val targetKey = target.storageKeyOrNull(uuid, targetProfileMode)
+                    ?: return@withLock Result.failure(NoActiveProfileException(uuid))
                 val sourceBalance = source.balance(sourceKey)
                 if (sourceBalance < amount) return@withLock Result.failure(IllegalStateException("Insufficient balance"))
 

@@ -81,7 +81,11 @@ data class AdminCommandMessages(
     @Help("Reply to /typewriter ns add, remove, level and reset when no artifact is linked to the definition. Placeholders: <player>, <storage>, <prefix>")
     @Colored
     @Placeholder
-    val noArtifactMessage: String = "<red><bold>Typewriter »<reset> <red>Storage '<storage>' has no artifact linked. Link a 'player_numericalstorage_artifact' entry to it."
+    val noArtifactMessage: String = "<red><bold>Typewriter »<reset> <red>Storage '<storage>' has no artifact linked. Link a 'player_numericalstorage_artifact' entry to it.",
+    @Help("Reply to /typewriter ns add, remove, level and reset, and to a menu action, when the definition is in profile mode and the player has no active MMOProfiles profile (profile selection, or a profile still loading). Nothing is written. Placeholders: <player>, <storage>, <prefix>")
+    @Colored
+    @Placeholder
+    val noActiveProfileMessage: String = "<red><bold>Typewriter »<reset> <red><player> has no active profile."
 )
 
 data class InterestRatePermission(

@@ -17,6 +17,7 @@ class AdminCommandMessagesTest {
         "noMenuMessage" to defaults.noMenuMessage,
         "invalidAmountMessage" to defaults.invalidAmountMessage,
         "noArtifactMessage" to defaults.noArtifactMessage,
+        "noActiveProfileMessage" to defaults.noActiveProfileMessage,
     )
 
     @Test

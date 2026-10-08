@@ -7,6 +7,7 @@ import java.lang.reflect.Proxy
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -24,8 +25,24 @@ class MmoProfilesKeysTest {
     }
 
     @Test
-    fun `a player without a profile is keyed by the player UUID`() {
-        assertEquals(player.toString(), keys { ProfileIdSource { null } }.keyOf(player))
+    fun `a player without a selected profile has no key, because the player UUID is the Main profile`() {
+        assertNull(keys { ProfileIdSource { null } }.keyOf(player))
+    }
+
+    @Test
+    fun `MMOProfiles manages the profiles once its service is registered, and not before`() {
+        var registered: ProfileIdSource? = null
+        val keys = keys { registered }
+
+        assertFalse(keys.managesProfiles())
+        registered = ProfileIdSource { null }
+
+        assertTrue(keys.managesProfiles())
+    }
+
+    @Test
+    fun `without the MMOProfiles API nothing manages profiles`() {
+        assertFalse(keys { throw NoClassDefFoundError("fr/phoenixdevt/profiles/ProfileProvider") }.managesProfiles())
     }
 
     @Test

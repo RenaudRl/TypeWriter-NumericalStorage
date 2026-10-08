@@ -17,10 +17,12 @@ internal fun interface ProfileIdSource {
  * The key under which the balance of a player in profile mode is stored: the id of the profile they play when
  * MMOProfiles manages profiles, the player's UUID otherwise.
  *
- * MMOProfiles is an optional plugin, detected at run time. Without it, or while the player has no profile, the key is
- * the UUID; a failure of the MMOProfiles API is reported to [onFailure] and also gives the UUID, because a balance
- * is never worth an exception in a menu. In MMOProfiles' proxy mode the UUID Bukkit sees is already the profile's,
- * so both keys coincide.
+ * MMOProfiles is an optional plugin, detected at run time. Without it the key is the UUID. While MMOProfiles manages
+ * profiles but the player has none selected (profile selection screen, or a profile still loading) there is no key:
+ * the player's UUID is the id of their "Main" profile, so falling back to it would show and credit another profile's
+ * balance. A failure of the MMOProfiles API is reported to [onFailure] and gives the UUID, because a balance is
+ * never worth an exception in a menu. In MMOProfiles' proxy mode the UUID Bukkit sees is already the profile's, so
+ * both keys coincide.
  *
  * A source that is not there yet (MMOProfiles has not registered its service) is looked for again on the next call;
  * an API that cannot be loaded at all is given up on for good.
@@ -32,16 +34,20 @@ internal class ProfileKeys(
     @Volatile private var source: ProfileIdSource? = null
     @Volatile private var apiMissing = false
 
-    fun keyOf(playerId: UUID): String {
+    /** The key of [playerId], or `null` when MMOProfiles manages profiles and the player has not selected one. */
+    fun keyOf(playerId: UUID): String? {
         val uuidKey = playerId.toString()
         val profiles = source ?: detectSource() ?: return uuidKey
         return try {
-            profiles.currentProfileId(playerId)?.toString() ?: uuidKey
+            profiles.currentProfileId(playerId)?.toString()
         } catch (error: Exception) {
             onFailure(error)
             uuidKey
         }
     }
+
+    /** Whether MMOProfiles is there to choose the profile of a player, so that a join does not name their storage yet. */
+    fun managesProfiles(): Boolean = source != null || detectSource() != null
 
     private fun detectSource(): ProfileIdSource? {
         if (apiMissing) return null
@@ -62,7 +68,9 @@ internal object ProfileKeyResolver {
     private val failureLogged = AtomicBoolean(false)
     private val keys = ProfileKeys(MmoProfilesDetection::source, ::logFailureOnce)
 
-    fun keyOf(playerId: UUID): String = keys.keyOf(playerId)
+    fun keyOf(playerId: UUID): String? = keys.keyOf(playerId)
+
+    fun managesProfiles(): Boolean = keys.managesProfiles()
 
     private fun logFailureOnce(error: Exception) {
         if (!failureLogged.compareAndSet(false, true)) return

@@ -65,6 +65,17 @@ class NumericalStorageTransactionHandler {
         val definition = findDefinitionById(definitionId) ?: return
         val artifact = definition.artifact.get() ?: return
 
+        // Profile selection or loading: no profile owns the storage yet, so no action may touch another one's.
+        if (artifact.storageKeyOrNull(player.uniqueId, definition.profileMode) == null) {
+            player.sendMiniWithResolvers(
+                definition.adminMessages.noActiveProfileMessage,
+                Placeholder.unparsed("player", player.name),
+                Placeholder.unparsed("storage", definition.id),
+                Placeholder.parsed("prefix", definition.prefix),
+            )
+            return
+        }
+
         when {
             // ---- Deposit ----
             action == "deposit_all" -> handleDeposit(player, definition, artifact, AmountType.ALL)

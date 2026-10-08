@@ -31,6 +31,8 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                 val definition = def()
                 val art = definition.artifact.get()
                     ?: return@executePlayerOrTarget sender.replyNoArtifact(definition, target)
+                art.storageKeyOrNull(target.uniqueId, definition.profileMode)
+                    ?: return@executePlayerOrTarget sender.replyNoActiveProfile(definition, target)
                 NumericalStorageCoroutines.launch {
                     art.update { balances, levels, _ ->
                         val key = art.storageKey(target.uniqueId, definition.profileMode)
@@ -53,6 +55,8 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                     val definition = def()
                     val art = definition.artifact.get()
                         ?: return@executePlayerOrTarget sender.replyNoArtifact(definition, target)
+                    art.storageKeyOrNull(target.uniqueId, definition.profileMode)
+                        ?: return@executePlayerOrTarget sender.replyNoActiveProfile(definition, target)
                     val levelVal = lvl()
                     NumericalStorageCoroutines.launch {
                         art.update { balances, levels, _ ->
@@ -85,6 +89,8 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                     val definition = def()
                     val art = definition.artifact.get()
                         ?: return@executePlayerOrTarget sender.replyNoArtifact(definition, target)
+                    art.storageKeyOrNull(target.uniqueId, definition.profileMode)
+                        ?: return@executePlayerOrTarget sender.replyNoActiveProfile(definition, target)
                     val typed = amt()
                     val amount = typed.toFinitePositiveAmountOrNull()
                         ?: return@executePlayerOrTarget sender.replyInvalidAmount(definition, target, typed)
@@ -112,6 +118,8 @@ fun CommandTree.numericalStorageCommands() = literal("ns") {
                     val definition = def()
                     val art = definition.artifact.get()
                         ?: return@executePlayerOrTarget sender.replyNoArtifact(definition, target)
+                    art.storageKeyOrNull(target.uniqueId, definition.profileMode)
+                        ?: return@executePlayerOrTarget sender.replyNoActiveProfile(definition, target)
                     val typed = amt()
                     val amount = typed.toFinitePositiveAmountOrNull()
                         ?: return@executePlayerOrTarget sender.replyInvalidAmount(definition, target, typed)
@@ -169,6 +177,9 @@ private fun CommandSender.reply(
 
 private fun CommandSender.replyNoArtifact(definition: NumericalStorageDefinitionEntry, target: Player) =
     reply(definition, definition.adminMessages.noArtifactMessage, unparsed("player", target.name))
+
+private fun CommandSender.replyNoActiveProfile(definition: NumericalStorageDefinitionEntry, target: Player) =
+    reply(definition, definition.adminMessages.noActiveProfileMessage, unparsed("player", target.name))
 
 private fun CommandSender.replyInvalidAmount(definition: NumericalStorageDefinitionEntry, target: Player, typed: Double) =
     reply(
