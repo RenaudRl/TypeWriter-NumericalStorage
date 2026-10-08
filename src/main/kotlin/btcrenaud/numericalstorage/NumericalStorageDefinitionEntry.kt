@@ -43,7 +43,7 @@ class NumericalStorageDefinitionEntry(
     val interestCron: CronExpression = CronExpression.default(),
     @Help("Transaction configuration for deposits/withdrawals via menu and commands.")
     val transaction: TransactionConfig = TransactionConfig(),
-    @Help("When enabled, balances are stored per-profile instead of globally: one balance per MMOProfiles profile. Without MMOProfiles, or before a profile is selected, the balance is the player's.")
+    @Help("When enabled, balances are stored per-profile instead of globally: one balance per MMOProfiles profile. Without MMOProfiles, the balance is the player's. With MMOProfiles, a player with no selected profile reads 0 and every deposit or withdrawal is refused (noActiveProfileMessage).")
     val profileMode: Boolean = false,
     @Help("Replies shown to the sender of the /typewriter ns admin commands (add, remove, level, reset, open).")
     val adminMessages: AdminCommandMessages = AdminCommandMessages()
