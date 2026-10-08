@@ -11,7 +11,7 @@ Named numeric balances per player for **Typewriter**: levels, capacity, interest
 - Balances and levels persisted in Typewriter assets (Player NumericalStorage Artifact).
 - Asynchronous writes and a short cache, no blocking I/O on the server threads.
 - Deferred interest on a cron schedule, capped to the number of catch-up cycles.
-- Per-player storage by default; optional per-profile storage through the MMOProfiles plugin.
+- Per-player storage by default; optional per-profile storage (`profileMode`) through the MMOProfiles plugin. While MMOProfiles is there but the player has no active profile (profile selection, or a profile still loading), the balance reads 0, writes are refused and the admin commands answer with `noActiveProfileMessage`; interest is settled when the profile is selected.
 - Menu built on the GuiAndDialogs extension, with `optionalButtons` (display-only items) on the menu and on each sub-menu.
 - Transactions in `INTERNAL` mode (PlaceholderAPI + commands) or `VAULT` mode (Vault economy), and atomic transfer between two storages.
 
