@@ -53,6 +53,22 @@ class DefinitionReadsTest {
     }
 
     @Test
+    fun `reading a balance or a level warms a cold storage up`() {
+        var warmUps = 0
+        val coldReader = object : StorageReader {
+            override fun balance(playerId: UUID, profileMode: Boolean): BigDecimal = BigDecimal.ZERO
+            override fun level(playerId: UUID, profileMode: Boolean): Int = 1
+            override fun warmUp() { warmUps++ }
+        }
+        val reads = DefinitionReads(coldReader, profileMode = true, levels = levels)
+
+        reads.balance(player)
+        reads.level(player)
+
+        assertEquals(2, warmUps)
+    }
+
+    @Test
     fun `a level beyond the configured ones has no bank level`() {
         val reads = DefinitionReads(reader, profileMode = true, levels = levels.take(2))
 

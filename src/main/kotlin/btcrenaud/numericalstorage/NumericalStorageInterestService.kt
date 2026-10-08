@@ -31,6 +31,10 @@ class NumericalStorageInterestService : Initializable, Listener {
     fun onJoin(event: PlayerJoinEvent) {
         val player = event.player
         NumericalStorageCoroutines.launch {
+            // Placeholders only read the cache: load every artifact at join, interest or not, so none starts empty.
+            Query.find(NumericalStorageDefinitionEntry::class).forEach { def ->
+                runCatching { def.artifact.get()?.preload() }
+            }
             Query.find(NumericalStorageDefinitionEntry::class).forEach { def ->
                 if (!def.interestEnabled) return@forEach
                 val artifact = def.artifact.get() ?: return@forEach

@@ -12,6 +12,12 @@ import java.util.UUID
 internal interface StorageReader {
     fun balance(playerId: UUID, profileMode: Boolean): BigDecimal
     fun level(playerId: UUID, profileMode: Boolean): Int
+
+    /**
+     * Starts loading the storage in the background when it is not in the cache yet. Reads never block, so until the
+     * load ends they answer from an empty cache: the next read, not this one, shows the stored value.
+     */
+    fun warmUp() {}
 }
 
 /**
@@ -23,9 +29,15 @@ internal class DefinitionReads(
     private val profileMode: Boolean,
     private val levels: List<BankLevel>,
 ) {
-    fun balance(playerId: UUID): BigDecimal = reader.balance(playerId, profileMode)
+    fun balance(playerId: UUID): BigDecimal {
+        reader.warmUp()
+        return reader.balance(playerId, profileMode)
+    }
 
-    fun level(playerId: UUID): Int = reader.level(playerId, profileMode)
+    fun level(playerId: UUID): Int {
+        reader.warmUp()
+        return reader.level(playerId, profileMode)
+    }
 
     /** The configured level the player is at, or `null` when none is configured for it (no limit, no level rate). */
     fun bankLevel(playerId: UUID): BankLevel? = levels.getOrNull(level(playerId) - 1)
@@ -35,6 +47,11 @@ internal class ArtifactReader(private val artifact: PlayerNumericalStorageArtifa
     override fun balance(playerId: UUID, profileMode: Boolean): BigDecimal = artifact.getBalance(playerId, profileMode)
 
     override fun level(playerId: UUID, profileMode: Boolean): Int = artifact.getLevel(playerId, profileMode)
+
+    override fun warmUp() {
+        if (artifact.isCached) return
+        NumericalStorageCoroutines.launch { artifact.preload() }
+    }
 }
 
 /** The reads of this definition, or `null` when it has no artifact linked. */

@@ -72,7 +72,15 @@ class PlayerNumericalStorageArtifactEntry(
     private val mutex: Mutex
         get() = LOCKS.computeIfAbsent(cacheKey) { Mutex() }
 
-    private data class Cache(var snapshot: NumericalStorageSnapshot? = null, var loadedAt: Long = 0L)
+    // Written by the persistence coroutines, read by the server and placeholder threads: @Volatile publishes each write.
+    private class Cache {
+        @Volatile var snapshot: NumericalStorageSnapshot? = null
+        @Volatile var loadedAt: Long = 0L
+    }
+
+    /** Whether the cache-only getters have a snapshot to answer from; `false` until the first load or write. */
+    val isCached: Boolean
+        get() = cache.snapshot != null
 
     private val cache: Cache
         get() = CACHES.computeIfAbsent(cacheKey) { Cache() }
