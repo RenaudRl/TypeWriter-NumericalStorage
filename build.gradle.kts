@@ -28,7 +28,7 @@ dependencies {
 }
 
 group = "btc.renaud"
-version = "0.14"
+version = "0.15"
 
 base {
     archivesName.set("NumericalStorageExtension")
