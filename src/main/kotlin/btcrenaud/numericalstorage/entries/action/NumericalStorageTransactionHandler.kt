@@ -32,7 +32,6 @@ import com.typewritermc.engine.paper.extensions.placeholderapi.parsePlaceholders
 import com.typewritermc.engine.paper.utils.asMini
 import com.typewritermc.engine.paper.utils.sendMiniWithResolvers as sendMiniWithResolversUnsafe
 import net.kyori.adventure.text.format.TextDecoration
-import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
@@ -679,14 +678,9 @@ class NumericalStorageTransactionHandler {
         subMenuId: String,
     ) {
         val subMenu = definition.menu.subMenus[subMenuId] ?: return
-        val mm = MiniMessage.miniMessage()
 
-        val rawTitle = subMenu.title.parsePlaceholders(player)
-        val title = try {
-            mm.deserialize(rawTitle)
-        } catch (_: Exception) {
-            mm.deserialize("<white>${rawTitle.replace("&", "§")}")
-        }
+        val rawTitle = subMenu.title
+        val title = NumericalStorageMenuTitle.component(rawTitle, player)
         val rows = subMenu.rows.coerceIn(1, 6)
         val size = InventorySize.entries.getOrNull(rows - 1) ?: InventorySize.SIZE_54
 

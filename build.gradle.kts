@@ -25,10 +25,12 @@ dependencies {
     // The API's interfaces mention Bukkit types (Player, Location, ItemStack): the stand-ins of the tests need them.
     testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     testImplementation(kotlin("test"))
+    // The button types are OmniGUI's ButtonTypeContribution: the tests need the classes themselves, not only the compile-time view.
+    testImplementation(project(":Typewriter-OmniGUIExtension"))
 }
 
 group = "btc.renaud"
-version = "0.15"
+version = "0.16"
 
 base {
     archivesName.set("NumericalStorageExtension")

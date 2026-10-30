@@ -41,7 +41,7 @@ class NumericalStorageButtonResolverLayout(
 
     private val delegate = GenericButtonResolverLayout(
         inner = inner,
-        prefix = "numericalstorage_button:",
+        prefix = NumericalStorageEditorButtonTypes.PREFIX,
         resolver = { type, p, slot -> resolveButtonType(type, p, slot) },
         id = id,
     )
